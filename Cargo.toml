@@ -1,0 +1,73 @@
+[package]
+name = "polars"
+version = "0.0.1"
+authors = ["Cory Grinstead"]
+documentation = "https://pola-rs.github.io/polars-book/"
+edition = "2021"
+homepage = "https://github.com/pola-rs/polars"
+license = "MIT"
+repository = "https://github.com/pola-rs/polars"
+wasm-opt = false
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+lto = true
+
+[features]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+wasm-bindgen = { version = "0.2.78", features = ["serde-serialize"] }
+js-sys = "0.3.55"
+wee_alloc = { version = "0.4.2", optional = true }
+thiserror = "1.0.20"
+polars-core = { path = "../polars/polars-core", default-features = false }
+
+
+[dependencies.polars]
+features = [
+  "abs",
+  # "arange", 
+  # "concat_str",
+  "csv-file",
+  "cum_agg",
+  "dataframe_arithmetic",
+  "diagonal_concat",
+  "diff",
+  "dot_diagram",
+  "dot_product",
+  "dtype-full",
+  # "extract_jsonpath",
+  # "horizontal_concat",
+  "interpolate",
+  "is_first",
+  "is_in",
+  "json",
+  # "lazy_regex",
+  "list",
+  "mode",
+  "performant",
+  "private",
+  "rank",
+  "rolling_window",
+  "round_series",
+  "serde",
+  "simd",
+  "string_encoding",
+  "strings",
+  "temporal",
+  "zip_with",
+]
+default-features = false
+path = "../polars"
+
+[dependencies.web-sys]
+version = "0.3.55"
+features = ["console"]
+
+[target."cfg(debug_assertions)".dependencies]
+console_error_panic_hook = "0.1.5"
+
+
+[workspace]
