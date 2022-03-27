@@ -838,85 +838,85 @@ impl JsSeries {
     //         .map_err(JsPolarsErr::from)?;
     //     Ok(s.into())
     // }
-    // pub fn year(&self) -> JsResult<JsSeries> {
-    //     let s = self.series.year().map_err(JsPolarsErr::from)?;
-    //     Ok(s.into_series().into())
-    // }
+    pub fn year(&self) -> JsResult<JsSeries> {
+        let s = self.series.year().map_err(JsPolarsErr::from)?;
+        Ok(s.into_series().into())
+    }
 
-    // pub fn month(&self) -> JsResult<JsSeries> {
-    //     let s = self.series.month().map_err(JsPolarsErr::from)?;
-    //     Ok(s.into_series().into())
-    // }
+    pub fn month(&self) -> JsResult<JsSeries> {
+        let s = self.series.month().map_err(JsPolarsErr::from)?;
+        Ok(s.into_series().into())
+    }
 
-    // pub fn weekday(&self) -> JsResult<JsSeries> {
-    //     let s = self.series.weekday().map_err(JsPolarsErr::from)?;
-    //     Ok(s.into_series().into())
-    // }
+    pub fn weekday(&self) -> JsResult<JsSeries> {
+        let s = self.series.weekday().map_err(JsPolarsErr::from)?;
+        Ok(s.into_series().into())
+    }
 
-    // pub fn week(&self) -> JsResult<JsSeries> {
-    //     let s = self.series.week().map_err(JsPolarsErr::from)?;
-    //     Ok(s.into_series().into())
-    // }
+    pub fn week(&self) -> JsResult<JsSeries> {
+        let s = self.series.week().map_err(JsPolarsErr::from)?;
+        Ok(s.into_series().into())
+    }
 
-    // pub fn day(&self) -> JsResult<JsSeries> {
-    //     let s = self.series.day().map_err(JsPolarsErr::from)?;
-    //     Ok(s.into_series().into())
-    // }
+    pub fn day(&self) -> JsResult<JsSeries> {
+        let s = self.series.day().map_err(JsPolarsErr::from)?;
+        Ok(s.into_series().into())
+    }
 
-    // pub fn ordinal_day(&self) -> JsResult<JsSeries> {
-    //     let s = self.series.ordinal_day().map_err(JsPolarsErr::from)?;
-    //     Ok(s.into_series().into())
-    // }
+    pub fn ordinal_day(&self) -> JsResult<JsSeries> {
+        let s = self.series.ordinal_day().map_err(JsPolarsErr::from)?;
+        Ok(s.into_series().into())
+    }
 
-    // pub fn hour(&self) -> JsResult<JsSeries> {
-    //     let s = self.series.hour().map_err(JsPolarsErr::from)?;
-    //     Ok(s.into_series().into())
-    // }
+    pub fn hour(&self) -> JsResult<JsSeries> {
+        let s = self.series.hour().map_err(JsPolarsErr::from)?;
+        Ok(s.into_series().into())
+    }
 
-    // pub fn minute(&self) -> JsResult<JsSeries> {
-    //     let s = self.series.minute().map_err(JsPolarsErr::from)?;
-    //     Ok(s.into_series().into())
-    // }
+    pub fn minute(&self) -> JsResult<JsSeries> {
+        let s = self.series.minute().map_err(JsPolarsErr::from)?;
+        Ok(s.into_series().into())
+    }
 
-    // pub fn second(&self) -> JsResult<JsSeries> {
-    //     let s = self.series.second().map_err(JsPolarsErr::from)?;
-    //     Ok(s.into_series().into())
-    // }
+    pub fn second(&self) -> JsResult<JsSeries> {
+        let s = self.series.second().map_err(JsPolarsErr::from)?;
+        Ok(s.into_series().into())
+    }
 
-    // pub fn nanosecond(&self) -> JsResult<JsSeries> {
-    //     let s = self.series.nanosecond().map_err(JsPolarsErr::from)?;
-    //     Ok(s.into_series().into())
-    // }
+    pub fn nanosecond(&self) -> JsResult<JsSeries> {
+        let s = self.series.nanosecond().map_err(JsPolarsErr::from)?;
+        Ok(s.into_series().into())
+    }
 
-    // pub fn dt_epoch_seconds(&self) -> JsResult<JsSeries> {
-    //     let ms = self
-    //         .series
-    //         .timestamp(TimeUnit::Milliseconds)
-    //         .map_err(JsPolarsErr::from)?;
-    //     Ok((ms / 1000).into_series().into())
-    // }
+    pub fn dt_epoch_seconds(&self) -> JsResult<JsSeries> {
+        let ms = self
+            .series
+            .timestamp(TimeUnit::Milliseconds)
+            .map_err(JsPolarsErr::from)?;
+        Ok((ms / 1000).into_series().into())
+    }
 
-    // pub fn peak_max(&self) -> Self {
-    //     self.series.peak_max().into_series().into()
-    // }
+    pub fn peak_max(&self) -> Self {
+        self.series.peak_max().into_series().into()
+    }
 
-    // pub fn peak_min(&self) -> Self {
-    //     self.series.peak_min().into_series().into()
-    // }
+    pub fn peak_min(&self) -> Self {
+        self.series.peak_min().into_series().into()
+    }
 
-    // pub fn n_unique(&self) -> JsResult<usize> {
-    //     let n = self.series.n_unique().map_err(JsPolarsErr::from)?;
-    //     Ok(n)
-    // }
+    pub fn n_unique(&self) -> JsResult<usize> {
+        let n = self.series.n_unique().map_err(JsPolarsErr::from)?;
+        Ok(n)
+    }
 
-    // pub fn is_first(&self) -> JsResult<JsSeries> {
-    //     let out = self
-    //         .series
-    //         .is_first()
-    //         .map_err(JsPolarsErr::from)?
-    //         .into_series();
-    //     Ok(out.into())
-    // }
+    pub fn is_first(&self) -> JsResult<JsSeries> {
+        let out = self
+            .series
+            .is_first()
+            .map_err(JsPolarsErr::from)?
+            .into_series();
+        Ok(out.into())
+    }
 
     // pub fn round(&self, decimals: u32) -> JsResult<JsSeries> {
     //     let s = self.series.round(decimals).map_err(JsPolarsErr::from)?;
