@@ -86,6 +86,7 @@ impl JsSeries {
         .into_series();
         Ok(JsSeries { series })
     }
+
     pub fn new_series_list(name: &str, val: SeriesArray, _strict: bool) -> Self {
         let vals = val.into_iter().map(|x| x.series).collect::<Box<[Series]>>();
         Series::new(name, &vals).into()
@@ -522,14 +523,13 @@ impl JsSeries {
         let series = self.series.fill_null(strat).map_err(JsPolarsErr::from)?;
         Ok(JsSeries::new(series))
     }
-    #[cfg(feature = "is_in")]
-    pub fn is_in(&self, other: &JsSeries) -> JsResult<JsSeries> {
-        let out = self
-            .series
-            .is_in(&other.series)
-            .map_err(JsPolarsErr::from)?;
-        Ok(out.into_series().into())
-    }
+    // pub fn is_in(&self, other: &JsSeries) -> JsResult<JsSeries> {
+    //     let out = self
+    //         .series
+    //         .is_in(&other.series)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok(out.into_series().into())
+    // }
 
     pub fn clone(&self) -> Self {
         JsSeries::new(self.series.clone())
@@ -654,24 +654,24 @@ impl JsSeries {
         Ok(s.into())
     }
 
-    // pub fn arr_lengths(&self) -> JsResult<JsSeries> {
-    //     let ca = self.series.list().map_err(JsPolarsErr::from)?;
-    //     let s = ca.lst_lengths().into_series();
-    //     Ok(JsSeries::new(s))
-    // }
+    pub fn arr_lengths(&self) -> JsResult<JsSeries> {
+        let ca = self.series.list().map_err(JsPolarsErr::from)?;
+        let s = ca.lst_lengths().into_series();
+        Ok(JsSeries::new(s))
+    }
 
     // // pub fn timestamp(&self, tu: Wrap<TimeUnit>) -> JsResult<JsSeries> {
     // //     let ca = self.series.timestamp(tu.0).map_err(JsPolarsErr::from)?;
     // //     Ok(ca.into_series().into())
     // // }
-    // pub fn get_list(&self, index: usize) -> Option<JsSeries> {
-    //     if let Ok(ca) = &self.series.list() {
-    //         let s = ca.get(index);
-    //         s.map(|s| s.into())
-    //     } else {
-    //         None
-    //     }
-    // }
+    pub fn get_list(&self, index: usize) -> Option<JsSeries> {
+        if let Ok(ca) = &self.series.list() {
+            let s = ca.get(index);
+            s.map(|s| s.into())
+        } else {
+            None
+        }
+    }
     // pub fn rolling_sum(
     //     &self,
     //     window_size: usize,
@@ -1088,305 +1088,137 @@ impl_set_at_idx!(set_at_idx_i16, i16, i16, Int16);
 impl_set_at_idx!(set_at_idx_i32, i32, i32, Int32);
 impl_set_at_idx!(set_at_idx_i64, i64, i64, Int64);
 
-macro_rules! impl_get {
-    ($name:ident, $series_variant:ident, $type:ty) => {
-        #[wasm_bindgen(js_class=Series)]
-        impl JsSeries {
-            pub fn $name(&self, index: f64) -> Option<$type> {
-                if let Ok(ca) = self.series.$series_variant() {
-                    let index = if index < 0.0 {
-                        (ca.len() as f64 + index) as usize
+
+// macro_rules! impl_new_numeric {
+//     ($name:ident, $builder:ident, $type:ty) => {
+//         #[wasm_bindgen(js_class=Series)]
+//         impl JsSeries {
+//             pub fn $name(name: &str, values: &js_sys::Array) -> JsResult<JsSeries> {
+//                 let series = $builder::from_iter_options(
+//                     name,
+//                     values
+//                         .iter()
+//                         .map(|v: JsValue| v.as_f64().map(|n| n as $type)),
+//                 )
+//                 .into_series();
+//                 Ok(JsSeries { series })
+//             }
+//         }
+//     };
+// }
+// impl_new_numeric!(new_i8, Int8Chunked, i8);
+// impl_new_numeric!(new_i16, Int16Chunked, i16);
+// impl_new_numeric!(new_i32, Int32Chunked, i32);
+// impl_new_numeric!(new_u8, UInt8Chunked, u8);
+// impl_new_numeric!(new_u16, UInt16Chunked, u16);
+// impl_new_numeric!(new_u32, UInt32Chunked, u32);
+// impl_new_numeric!(new_f32, Float32Chunked, f32);
+// impl_new_numeric!(new_f64, Float64Chunked, f64);
+
+// macro_rules! impl_get {
+//     ($name:ident, $series_variant:ident, $type:ty) => {
+//         #[wasm_bindgen(js_class=Series)]
+//         impl JsSeries {
+//             pub fn $name(&self, index: f64) -> Option<$type> {
+//                 if let Ok(ca) = self.series.$series_variant() {
+//                     let index = if index < 0.0 {
+//                         (ca.len() as f64 + index) as usize
+//                     } else {
+//                         index as usize
+//                     };
+//                     ca.get(index)
+//                 } else {
+//                     None
+//                 }
+//             }
+//         }
+//     };
+// }
+
+// impl_get!(get_datetime, datetime, i64);
+// impl_get!(get_duration, duration, i64);
+
+macro_rules! impl_eq_num {
+    ($name:ident, $variant:ident, $type:ty) => {
+        paste::paste! {
+            #[wasm_bindgen(js_class=Series)]
+            impl JsSeries {
+                pub fn [<get $name>](&self, index: f64) -> Option<$type> {
+                    if let Ok(ca) = self.series.$type() {
+                        let index = if index < 0.0 {
+                            (ca.len() as f64 + index) as usize
+                        } else {
+                            index as usize
+                        };
+                        ca.get(index)
                     } else {
-                        index as usize
-                    };
-                    ca.get(index)
-                } else {
-                    None
+                        None
+                    }
+                }
+
+                pub fn [<add$name>](&self, other: $type) -> JsSeries {
+                    JsSeries::new(&self.series + other)
+                }
+                pub fn [<sub$name>](&self, other: $type) -> JsSeries {
+                    JsSeries::new(&self.series - other)
+                }
+                pub fn [<mul$name>](&self, other: $type) -> JsSeries {
+                    JsSeries::new(&self.series * other)
+                }
+                pub fn [<div$name>](&self, other: $type) -> JsSeries {
+                    JsSeries::new(&self.series / other)
+                }
+                pub fn [<rem$name>](&self, other: $type) -> JsSeries {
+                    JsSeries::new(&self.series % other)
+                }
+                pub fn [<add$name _rhs>](&self, other: $type) -> JsSeries {
+                    JsSeries::new(other.add(&self.series))
+                }
+                pub fn [<sub$name _rhs>](&self, other: $type) -> JsSeries {
+                    JsSeries::new(other.sub(&self.series))
+                }
+                pub fn [<mul$name _rhs>](&self, other: $type) -> JsSeries {
+                    JsSeries::new(other.mul(&self.series))
+                }
+                pub fn [<div$name _rhs>](&self, other: $type) -> JsSeries {
+                    JsSeries::new(other.div(&self.series))
+                }
+                pub fn [<rem$name _rhs>](&self, other: $type) -> JsSeries {
+                    JsSeries::new(other.rem(&self.series))
+                }
+                pub fn [<eq$name>](&self, rhs: $type) -> Self {
+                    JsSeries::new(self.series.equal(rhs).into_series())
+                }
+                pub fn [<neq$name>](&self, rhs: $type) -> Self {
+                    JsSeries::new(self.series.not_equal(rhs).into_series())
+                }
+                pub fn [<gt$name>](&self, rhs: $type) -> Self {
+                    JsSeries::new(self.series.gt(rhs).into_series())
+                }
+                pub fn [<lt$name>](&self, rhs: $type) -> Self {
+                    JsSeries::new(self.series.lt(rhs).into_series())
+                }
+                pub fn [<gt_eq$name>](&self, rhs: $type) -> Self {
+                    JsSeries::new(self.series.gt_eq(rhs).into_series())
+                }
+                pub fn [<lt_eq$name>](&self, rhs: $type) -> Self {
+                    JsSeries::new(self.series.lt_eq(rhs).into_series())
                 }
             }
         }
     };
 }
-impl_get!(get_f32, f32, f32);
-impl_get!(get_f64, f64, f64);
-impl_get!(get_u8, u8, u8);
-impl_get!(get_u16, u16, u16);
-impl_get!(get_u32, u32, u32);
-impl_get!(get_u64, u64, u64);
-impl_get!(get_i8, i8, i8);
-impl_get!(get_i16, i16, i16);
-impl_get!(get_i32, i32, i32);
-impl_get!(get_i64, i64, i64);
-// impl_get!(get_str, utf8, &str);
-impl_get!(get_date, date, i32);
-impl_get!(get_datetime, datetime, i64);
-impl_get!(get_duration, duration, i64);
 
-macro_rules! impl_arithmetic {
-    ($name:ident, $type:ty, $operand:tt) => {
-        #[wasm_bindgen(js_class=Series)]
-        impl JsSeries {
-            pub fn $name(&self, other: $type) -> JsResult<JsSeries> {
-                Ok(JsSeries::new(&self.series $operand other))
-            }
-        }
-    };
-}
-
-impl_arithmetic!(add_u8, u8, +);
-impl_arithmetic!(add_u16, u16, +);
-impl_arithmetic!(add_u32, u32, +);
-impl_arithmetic!(add_u64, u64, +);
-impl_arithmetic!(add_i8, i8, +);
-impl_arithmetic!(add_i16, i16, +);
-impl_arithmetic!(add_i32, i32, +);
-impl_arithmetic!(add_i64, i64, +);
-impl_arithmetic!(add_datetime, i64, +);
-impl_arithmetic!(add_duration, i64, +);
-impl_arithmetic!(add_f32, f32, +);
-impl_arithmetic!(add_f64, f64, +);
-impl_arithmetic!(sub_u8, u8, -);
-impl_arithmetic!(sub_u16, u16, -);
-impl_arithmetic!(sub_u32, u32, -);
-impl_arithmetic!(sub_u64, u64, -);
-impl_arithmetic!(sub_i8, i8, -);
-impl_arithmetic!(sub_i16, i16, -);
-impl_arithmetic!(sub_i32, i32, -);
-impl_arithmetic!(sub_i64, i64, -);
-impl_arithmetic!(sub_datetime, i64, -);
-impl_arithmetic!(sub_duration, i64, -);
-impl_arithmetic!(sub_f32, f32, -);
-impl_arithmetic!(sub_f64, f64, -);
-impl_arithmetic!(div_u8, u8, /);
-impl_arithmetic!(div_u16, u16, /);
-impl_arithmetic!(div_u32, u32, /);
-impl_arithmetic!(div_u64, u64, /);
-impl_arithmetic!(div_i8, i8, /);
-impl_arithmetic!(div_i16, i16, /);
-impl_arithmetic!(div_i32, i32, /);
-impl_arithmetic!(div_i64, i64, /);
-impl_arithmetic!(div_f32, f32, /);
-impl_arithmetic!(div_f64, f64, /);
-impl_arithmetic!(mul_u8, u8, *);
-impl_arithmetic!(mul_u16, u16, *);
-impl_arithmetic!(mul_u32, u32, *);
-impl_arithmetic!(mul_u64, u64, *);
-impl_arithmetic!(mul_i8, i8, *);
-impl_arithmetic!(mul_i16, i16, *);
-impl_arithmetic!(mul_i32, i32, *);
-impl_arithmetic!(mul_i64, i64, *);
-impl_arithmetic!(mul_f32, f32, *);
-impl_arithmetic!(mul_f64, f64, *);
-impl_arithmetic!(rem_u8, u8, %);
-impl_arithmetic!(rem_u16, u16, %);
-impl_arithmetic!(rem_u32, u32, %);
-impl_arithmetic!(rem_u64, u64, %);
-impl_arithmetic!(rem_i8, i8, %);
-impl_arithmetic!(rem_i16, i16, %);
-impl_arithmetic!(rem_i32, i32, %);
-impl_arithmetic!(rem_i64, i64, %);
-impl_arithmetic!(rem_f32, f32, %);
-impl_arithmetic!(rem_f64, f64, %);
-
-macro_rules! impl_rhs_arithmetic {
-    ($name:ident, $type:ty, $operand:tt) => {
-        #[wasm_bindgen(js_class=Series)]
-        impl JsSeries {
-            pub fn $name(&self, other: $type) -> JsResult<JsSeries> {
-                Ok(JsSeries::new(other.$operand(&self.series)))
-            }
-        }
-    };
-}
-
-impl_rhs_arithmetic!(add_u8_rhs, u8, add);
-impl_rhs_arithmetic!(add_u16_rhs, u16, add);
-impl_rhs_arithmetic!(add_u32_rhs, u32, add);
-impl_rhs_arithmetic!(add_u64_rhs, u64, add);
-impl_rhs_arithmetic!(add_i8_rhs, i8, add);
-impl_rhs_arithmetic!(add_i16_rhs, i16, add);
-impl_rhs_arithmetic!(add_i32_rhs, i32, add);
-impl_rhs_arithmetic!(add_i64_rhs, i64, add);
-impl_rhs_arithmetic!(add_f32_rhs, f32, add);
-impl_rhs_arithmetic!(add_f64_rhs, f64, add);
-impl_rhs_arithmetic!(sub_u8_rhs, u8, sub);
-impl_rhs_arithmetic!(sub_u16_rhs, u16, sub);
-impl_rhs_arithmetic!(sub_u32_rhs, u32, sub);
-impl_rhs_arithmetic!(sub_u64_rhs, u64, sub);
-impl_rhs_arithmetic!(sub_i8_rhs, i8, sub);
-impl_rhs_arithmetic!(sub_i16_rhs, i16, sub);
-impl_rhs_arithmetic!(sub_i32_rhs, i32, sub);
-impl_rhs_arithmetic!(sub_i64_rhs, i64, sub);
-impl_rhs_arithmetic!(sub_f32_rhs, f32, sub);
-impl_rhs_arithmetic!(sub_f64_rhs, f64, sub);
-impl_rhs_arithmetic!(div_u8_rhs, u8, div);
-impl_rhs_arithmetic!(div_u16_rhs, u16, div);
-impl_rhs_arithmetic!(div_u32_rhs, u32, div);
-impl_rhs_arithmetic!(div_u64_rhs, u64, div);
-impl_rhs_arithmetic!(div_i8_rhs, i8, div);
-impl_rhs_arithmetic!(div_i16_rhs, i16, div);
-impl_rhs_arithmetic!(div_i32_rhs, i32, div);
-impl_rhs_arithmetic!(div_i64_rhs, i64, div);
-impl_rhs_arithmetic!(div_f32_rhs, f32, div);
-impl_rhs_arithmetic!(div_f64_rhs, f64, div);
-impl_rhs_arithmetic!(mul_u8_rhs, u8, mul);
-impl_rhs_arithmetic!(mul_u16_rhs, u16, mul);
-impl_rhs_arithmetic!(mul_u32_rhs, u32, mul);
-impl_rhs_arithmetic!(mul_u64_rhs, u64, mul);
-impl_rhs_arithmetic!(mul_i8_rhs, i8, mul);
-impl_rhs_arithmetic!(mul_i16_rhs, i16, mul);
-impl_rhs_arithmetic!(mul_i32_rhs, i32, mul);
-impl_rhs_arithmetic!(mul_i64_rhs, i64, mul);
-impl_rhs_arithmetic!(mul_f32_rhs, f32, mul);
-impl_rhs_arithmetic!(mul_f64_rhs, f64, mul);
-impl_rhs_arithmetic!(rem_u8_rhs, u8, rem);
-impl_rhs_arithmetic!(rem_u16_rhs, u16, rem);
-impl_rhs_arithmetic!(rem_u32_rhs, u32, rem);
-impl_rhs_arithmetic!(rem_u64_rhs, u64, rem);
-impl_rhs_arithmetic!(rem_i8_rhs, i8, rem);
-impl_rhs_arithmetic!(rem_i16_rhs, i16, rem);
-impl_rhs_arithmetic!(rem_i32_rhs, i32, rem);
-impl_rhs_arithmetic!(rem_i64_rhs, i64, rem);
-impl_rhs_arithmetic!(rem_f32_rhs, f32, rem);
-impl_rhs_arithmetic!(rem_f64_rhs, f64, rem);
-
-macro_rules! impl_eq_num {
-    ($name:ident, $type:ty) => {
-        #[wasm_bindgen(js_class=Series)]
-        impl JsSeries {
-            pub fn $name(&self, rhs: $type) -> JsResult<JsSeries> {
-                Ok(JsSeries::new(self.series.equal(rhs).into_series()))
-            }
-        }
-    };
-}
-
-impl_eq_num!(eq_u8, u8);
-impl_eq_num!(eq_u16, u16);
-impl_eq_num!(eq_u32, u32);
-impl_eq_num!(eq_u64, u64);
-impl_eq_num!(eq_i8, i8);
-impl_eq_num!(eq_i16, i16);
-impl_eq_num!(eq_i32, i32);
-impl_eq_num!(eq_i64, i64);
-impl_eq_num!(eq_f32, f32);
-impl_eq_num!(eq_f64, f64);
-// impl_eq_num!(eq_str, &str);
-
-macro_rules! impl_neq_num {
-    ($name:ident, $type:ty) => {
-        #[wasm_bindgen(js_class=Series)]
-        impl JsSeries {
-            pub fn $name(&self, rhs: $type) -> JsResult<JsSeries> {
-                Ok(JsSeries::new(self.series.not_equal(rhs).into_series()))
-            }
-        }
-    };
-}
-
-impl_neq_num!(neq_u8, u8);
-impl_neq_num!(neq_u16, u16);
-impl_neq_num!(neq_u32, u32);
-impl_neq_num!(neq_u64, u64);
-impl_neq_num!(neq_i8, i8);
-impl_neq_num!(neq_i16, i16);
-impl_neq_num!(neq_i32, i32);
-impl_neq_num!(neq_i64, i64);
-impl_neq_num!(neq_f32, f32);
-impl_neq_num!(neq_f64, f64);
-// impl_neq_num!(neq_str, &str);
-
-// macro_rules! impl_gt_num {
-//     ($name:ident, $type:ty) => {
-//         #[wasm_bindgen(js_class=Series)]
-//         impl JsSeries {
-//             pub fn $name(&self, rhs: $type) -> JsResult<JsSeries> {
-//                 Ok(JsSeries::new(self.series.gt(rhs).into_series()))
-//             }
-//         }
-//     };
-// }
-
-// impl_gt_num!(gt_u8, u8);
-// impl_gt_num!(gt_u16, u16);
-// impl_gt_num!(gt_u32, u32);
-// impl_gt_num!(gt_u64, u64);
-// impl_gt_num!(gt_i8, i8);
-// impl_gt_num!(gt_i16, i16);
-// impl_gt_num!(gt_i32, i32);
-// impl_gt_num!(gt_i64, i64);
-// impl_gt_num!(gt_f32, f32);
-// impl_gt_num!(gt_f64, f64);
-// impl_gt_num!(gt_str, &str);
-
-// macro_rules! impl_gt_eq_num {
-//     ($name:ident, $type:ty) => {
-//         #[wasm_bindgen(js_class=Series)]
-//         impl JsSeries {
-//             pub fn $name(&self, rhs: $type) -> JsResult<JsSeries> {
-//                 Ok(JsSeries::new(self.series.gt_eq(rhs).into_series()))
-//             }
-//         }
-//     };
-// }
-
-// impl_gt_eq_num!(gt_eq_u8, u8);
-// impl_gt_eq_num!(gt_eq_u16, u16);
-// impl_gt_eq_num!(gt_eq_u32, u32);
-// impl_gt_eq_num!(gt_eq_u64, u64);
-// impl_gt_eq_num!(gt_eq_i8, i8);
-// impl_gt_eq_num!(gt_eq_i16, i16);
-// impl_gt_eq_num!(gt_eq_i32, i32);
-// impl_gt_eq_num!(gt_eq_i64, i64);
-// impl_gt_eq_num!(gt_eq_f32, f32);
-// impl_gt_eq_num!(gt_eq_f64, f64);
-// impl_gt_eq_num!(gt_eq_str, &str);
-
-// macro_rules! impl_lt_num {
-//     ($name:ident, $type:ty) => {
-//         #[wasm_bindgen(js_class=Series)]
-//         impl JsSeries {
-//             pub fn $name(&self, rhs: $type) -> JsResult<JsSeries> {
-//                 Ok(JsSeries::new(self.series.lt(rhs).into_series()))
-//             }
-//         }
-//     };
-// }
-
-// impl_lt_num!(lt_u8, u8);
-// impl_lt_num!(lt_u16, u16);
-// impl_lt_num!(lt_u32, u32);
-// impl_lt_num!(lt_u64, u64);
-// impl_lt_num!(lt_i8, i8);
-// impl_lt_num!(lt_i16, i16);
-// impl_lt_num!(lt_i32, i32);
-// impl_lt_num!(lt_i64, i64);
-// impl_lt_num!(lt_f32, f32);
-// impl_lt_num!(lt_f64, f64);
-// impl_lt_num!(lt_str, &str);
-
-// macro_rules! impl_lt_eq_num {
-//     ($name:ident, $type:ty) => {
-//         #[wasm_bindgen(js_class=Series)]
-//         impl JsSeries {
-//             pub fn $name(&self, rhs: $type) -> JsResult<JsSeries> {
-//                 Ok(JsSeries::new(self.series.lt_eq(rhs).into_series()))
-//             }
-//         }
-//     };
-// }
-
-// impl_lt_eq_num!(lt_eq_u8, u8);
-// impl_lt_eq_num!(lt_eq_u16, u16);
-// impl_lt_eq_num!(lt_eq_u32, u32);
-// impl_lt_eq_num!(lt_eq_u64, u64);
-// impl_lt_eq_num!(lt_eq_i8, i8);
-// impl_lt_eq_num!(lt_eq_i16, i16);
-// impl_lt_eq_num!(lt_eq_i32, i32);
-// impl_lt_eq_num!(lt_eq_i64, i64);
-// impl_lt_eq_num!(lt_eq_f32, f32);
-// impl_lt_eq_num!(lt_eq_f64, f64);
-// impl_lt_eq_num!(lt_eq_str, &str);
+// impl_eq_num!(_u8, u8, u8);
+// impl_eq_num!(_u16, u16, u16);
+// impl_eq_num!(_u32, u32, u32);
+// impl_eq_num!(_u64, u64, u64);
+// impl_eq_num!(_i8, i8, i8);
+// impl_eq_num!(_i16, i16, i16);
+// impl_eq_num!(_i32, i32, i32);
+// impl_eq_num!(_i64, i64, i64);
+// impl_eq_num!(_f32, f32, f32);
+impl_eq_num!(_f64, f64, f64);
 
 pub fn reinterpret(s: &Series, signed: bool) -> polars::prelude::Result<Series> {
     match (s.dtype(), signed) {
