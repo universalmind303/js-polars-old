@@ -1,13 +1,29 @@
+use crate::conversion::str_to_null_behavior;
+use crate::conversion::str_to_rankmethod;
+use crate::conversion::Wrap;
+use crate::utils::str_to_polarstype;
 use crate::{console_log, log};
-use polars::prelude::{Float64Chunked, IntoSeries, NewChunkedArray, Series, Utf8Chunked};
-use std::ops::{BitAnd, BitOr};
+use polars::prelude::*;
+
+use crate::{extern_iterator, extern_struct};
+
+use super::{error::JsPolarsErr, JsResult};
+
+use std::ops::Deref;
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name=Series)]
 #[repr(transparent)]
 pub struct JsSeries {
     pub(crate) series: Series,
 }
+
+impl JsSeries {
+    pub(crate) fn new(series: Series) -> Self {
+        JsSeries { series }
+    }
+}
+
 
 impl From<Series> for JsSeries {
     fn from(series: Series) -> Self {
@@ -15,51 +31,66 @@ impl From<Series> for JsSeries {
     }
 }
 
+// impl wasm_bindgen::convert::FromWasmAbi for JsSeries {
+
+// }
+impl Deref for JsSeries {
+    type Target = Series;
+
+    fn deref(&self) -> &Self::Target {
+        &self.series
+    }
+}
+
 #[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "Series")]
+    pub type ExternSeries;
+
+    #[wasm_bindgen(method, getter = ptr)]
+    fn ptr(this: &ExternSeries) -> f64;
+    #[wasm_bindgen(typescript_type = "Series[]")]
+    pub type SeriesArray;
+}
+
+extern_struct!(ExternSeries, JsSeries);
+extern_iterator!(SeriesArray, ExternSeries, JsSeries);
+
+#[wasm_bindgen(js_class=Series)]
 impl JsSeries {
-    #[wasm_bindgen(constructor)]
-    pub fn new(name: &str, values: Box<[JsValue]>) -> JsSeries {
-        let first = &values[0];
-        if first.as_f64().is_some() {
-            let series = Float64Chunked::new_from_opt_iter(name, values.iter().map(|v| v.as_f64()))
+    pub fn new_str(name: &str, values: &js_sys::Array) -> JsResult<JsSeries> {
+        let series = Utf8Chunked::from_iter_options(name, values.iter().map(|v| v.as_string()))
+            .into_series();
+        Ok(JsSeries { series })
+    }
+    pub fn new_bool(name: &str, values: &js_sys::Array) -> JsResult<JsSeries> {
+        let series = BooleanChunked::from_iter_options(name, values.iter().map(|v| v.as_bool()))
+            .into_series();
+
+        Ok(JsSeries { series })
+    }
+    pub fn new_f64(name: &str, values: &js_sys::Array) -> JsResult<JsSeries> {
+        let series =
+            Float64Chunked::from_iter_options(name, values.iter().map(|v: JsValue| v.as_f64()))
                 .into_series();
-            JsSeries { series }
-        } else if first.as_string().is_some() {
-            let series = Utf8Chunked::new_from_opt_iter(name, values.iter().map(|v| v.as_string()))
-                .into_series();
-            JsSeries { series }
-        } else {
-            unimplemented!()
-        }
+        Ok(JsSeries { series })
+    }
+    pub fn new_i8(name: &str, values: &js_sys::Array) -> JsResult<JsSeries> {
+        let series = Int8Chunked::from_iter_options(
+            name,
+            values.iter().map(|v: JsValue| v.as_f64().map(|n| n as i8)),
+        )
+        .into_series();
+        Ok(JsSeries { series })
+    }
+    pub fn new_series_list(name: &str, val: SeriesArray, _strict: bool) -> Self {
+        let vals = val.into_iter().map(|x| x.series).collect::<Box<[Series]>>();
+        Series::new(name, &vals).into()
     }
 
-    #[wasm_bindgen(js_name = toString)]
-    pub fn to_string(&self) -> String {
-        format!("{}", self.series)
+    pub fn get_fmt(&self, index: usize) -> String {
+        format!("{}", self.series.get(index))
     }
-
-    pub fn log(&self) {
-        console_log!("{}", self.series)
-    }
-
-    #[wasm_bindgen(js_name = toJSON)]
-    pub fn to_json(&self) -> String {
-        let mut series_fmt = String::with_capacity(10);
-        series_fmt.push('[');
-        let n = std::cmp::min(self.series.len(), 5);
-        for i in 0..n {
-            let val = self.series.get(i);
-            if i < n - 1 {
-                series_fmt.push_str(&format!("{}, ", val))
-            } else {
-                series_fmt.push_str(&format!("{}", val))
-            }
-        }
-        series_fmt.push(']');
-
-        format!(r#"{{ {}: {} }}"#, self.series.name(), series_fmt)
-    }
-
     pub fn rechunk(&mut self, in_place: bool) -> Option<JsSeries> {
         let series = self.series.rechunk();
         if in_place {
@@ -69,59 +100,124 @@ impl JsSeries {
             Some(series.into())
         }
     }
-
-    pub fn bitand(&self, other: &JsSeries) -> Self {
-        let s = self
+    // pub fn get_idx(&self, idx: usize) -> JsValue {
+    //     Wrap(self.series.get(idx)).into()
+    // }
+    pub fn bitand(&self, other: &JsSeries) -> JsResult<JsSeries> {
+        let out = self
             .series
-            .bool()
-            .expect("boolean")
-            .bitand(other.series.bool().expect("boolean"))
-            .into_series();
-        s.into()
+            .bitand(&other.series)
+            .map_err(JsPolarsErr::from)?;
+        Ok(out.into())
     }
 
-    pub fn bitor(&self, other: &JsSeries) -> Self {
-        let s = self
+    pub fn bitor(&self, other: &JsSeries) -> JsResult<JsSeries> {
+        let out = self
             .series
-            .bool()
-            .expect("boolean")
-            .bitor(other.series.bool().expect("boolean"))
-            .into_series();
-        s.into()
+            .bitor(&other.series)
+            .map_err(JsPolarsErr::from)?;
+        Ok(out.into())
+    }
+    pub fn bitxor(&self, other: &JsSeries) -> JsResult<JsSeries> {
+        let out = self
+            .series
+            .bitxor(&other.series)
+            .map_err(JsPolarsErr::from)?;
+        Ok(out.into())
     }
 
     #[wasm_bindgen(js_name = cumSum)]
     pub fn cumsum(&self, reverse: bool) -> Self {
         self.series.cumsum(reverse).into()
     }
-
     #[wasm_bindgen(js_name = cumMax)]
     pub fn cummax(&self, reverse: bool) -> Self {
         self.series.cummax(reverse).into()
     }
-
     #[wasm_bindgen(js_name = cumMin)]
     pub fn cummin(&self, reverse: bool) -> Self {
         self.series.cummin(reverse).into()
     }
-
+    #[wasm_bindgen(js_name = cumProd)]
+    pub fn cumprod(&self, reverse: bool) -> Self {
+        self.series.cumprod(reverse).into()
+    }
     #[wasm_bindgen(js_name = chunkLengths)]
     pub fn chunk_lengths(&self) -> Vec<usize> {
-        self.series.chunk_lengths().clone()
+        self.series.chunk_lengths().collect()
     }
 
-    pub fn name(&self) -> String {
+    pub fn name(&self) -> js_sys::JsString {
         self.series.name().into()
     }
 
     pub fn rename(&mut self, name: &str) {
         self.series.rename(name);
     }
-
+    pub fn dtype(&self) -> String {
+        let dt: crate::datatypes::JsDataType = self.series.dtype().into();
+        dt.to_string()
+    }
+    pub fn inner_dtype(&self) -> Option<String> {
+        self.series.dtype().inner_dtype().map(|dt| {
+            let dt: crate::datatypes::JsDataType = dt.into();
+            dt.to_string()
+        })
+    }
     pub fn mean(&self) -> Option<f64> {
-        self.series.mean()
+        match self.series.dtype() {
+            DataType::Boolean => {
+                let s = self.series.cast(&DataType::UInt8).unwrap();
+                s.mean()
+            }
+            _ => self.series.mean(),
+        }
     }
 
+    pub fn max(&self) -> JsValue {
+        match self.series.dtype() {
+            DataType::Float32 | DataType::Float64 => {
+                self.series.max::<f64>().map(JsValue::from).into()
+            }
+            DataType::Boolean => self
+                .series
+                .max::<u32>()
+                .map(|v| v == 1)
+                .map(JsValue::from)
+                .into(),
+            _ => self.series.max::<i64>().map(JsValue::from).into(),
+        }
+    }
+
+    pub fn min(&self) -> JsValue {
+        match self.series.dtype() {
+            DataType::Float32 | DataType::Float64 => {
+                self.series.min::<f64>().map(JsValue::from).into()
+            }
+            DataType::Boolean => self
+                .series
+                .min::<u32>()
+                .map(|v| v == 1)
+                .map(JsValue::from)
+                .into(),
+            _ => self.series.min::<i64>().map(JsValue::from).into(),
+        }
+    }
+
+    pub fn sum(&self) -> JsValue {
+        match self.series.dtype() {
+            DataType::Float32 | DataType::Float64 => {
+                self.series.sum::<f64>().map(JsValue::from).into()
+            }
+            DataType::Boolean => self
+                .series
+                .sum::<u32>()
+                .map(|v| v == 1)
+                .map(JsValue::from)
+                .into(),
+            _ => self.series.sum::<i64>().map(JsValue::from).into(),
+        }
+    }
     #[wasm_bindgen(js_name = nChunks)]
     pub fn n_chunks(&self) -> usize {
         self.series.n_chunks()
@@ -137,25 +233,27 @@ impl JsSeries {
         series.into()
     }
 
-    pub fn append(&mut self, other: &JsSeries) -> Result<(), JsValue> {
-        let res = self.series.append(&other.series);
-        if let Err(e) = res {
-            Err(format!("{:?}", e).into())
-        } else {
-            Ok(())
-        }
+    pub fn append(&mut self, other: &JsSeries) -> JsResult<()> {
+        self.series
+            .append(&other.series)
+            .map_err(JsPolarsErr::from)?;
+        Ok(())
     }
-
-    pub fn filter(&self, filter: &JsSeries) -> Result<JsSeries, JsValue> {
+    pub fn extend(&mut self, other: &JsSeries) -> JsResult<()> {
+        self.series
+            .extend(&other.series)
+            .map_err(JsPolarsErr::from)?;
+        Ok(())
+    }
+    pub fn filter(&self, filter: &JsSeries) -> JsResult<JsSeries> {
         let filter_series = &filter.series;
         if let Ok(ca) = filter_series.bool() {
-            let series = self.series.filter(ca).unwrap();
-            Ok(series.into())
+            let series = self.series.filter(ca).map_err(JsPolarsErr::from)?;
+            Ok(JsSeries { series })
         } else {
-            Err("Expected a boolean mask".into())
+            Err(JsError::new("Expected a boolean mask").into())
         }
     }
-
     pub fn add(&self, other: &JsSeries) -> Self {
         (&self.series + &other.series).into()
     }
@@ -172,6 +270,9 @@ impl JsSeries {
         (&self.series / &other.series).into()
     }
 
+    pub fn rem(&self, other: &JsSeries) -> Self {
+        (&self.series % &other.series).into()
+    }
     pub fn head(&self, length: Option<usize>) -> Self {
         (self.series.head(length)).into()
     }
@@ -181,11 +282,762 @@ impl JsSeries {
     }
 
     pub fn sort(&mut self, reverse: bool) -> Self {
-        (self.series.sort(reverse)).into()
+        self.series.sort(reverse).into()
     }
 
     #[wasm_bindgen(js_name = argSort)]
-    pub fn argsort(&self, reverse: bool) -> Self {
-        self.series.argsort(reverse).into_series().into()
+    pub fn argsort(&self, reverse: bool, nulls_last: bool) -> Self {
+        self.series
+            .argsort(SortOptions {
+                descending: reverse,
+                nulls_last,
+            })
+            .into_series()
+            .into()
+    }
+
+    pub fn unique(&self) -> JsResult<JsSeries> {
+        let unique = self.series.unique().map_err(JsPolarsErr::from)?;
+        Ok(unique.into())
+    }
+
+    // pub fn value_counts(&self) -> JsResult<JsDataFrame> {
+    //     let df = self.series.value_counts(true).map_err(JsPolarsErr::from)?;
+    //     Ok(df.into())
+    // }
+    #[wasm_bindgen(js_name = argUnique)]
+    pub fn arg_unique(&self) -> JsResult<JsSeries> {
+        let arg_unique = self.series.arg_unique().map_err(JsPolarsErr::from)?;
+        Ok(arg_unique.into_series().into())
+    }
+
+    #[wasm_bindgen(js_name = argMin)]
+    pub fn arg_min(&self) -> Option<usize> {
+        self.series.arg_min()
+    }
+    #[wasm_bindgen(js_name = argMax)]
+    pub fn arg_max(&self) -> Option<usize> {
+        self.series.arg_max()
+    }
+
+    pub fn take(&self, indices: Vec<u32>) -> JsResult<JsSeries> {
+        let indices = UInt32Chunked::from_vec("", indices);
+
+        let take = self.series.take(&indices).map_err(JsPolarsErr::from)?;
+        Ok(JsSeries::from(take))
+    }
+    #[wasm_bindgen(js_name = takeWithSeries)]
+    pub fn take_with_series(&self, indices: &JsSeries) -> JsResult<JsSeries> {
+        let idx = indices.series.u32().map_err(JsPolarsErr::from)?;
+        let take = self.series.take(idx).map_err(JsPolarsErr::from)?;
+        Ok(JsSeries::new(take))
+    }
+
+    //
+    //
+    //
+    //
+
+    #[wasm_bindgen(js_name = nullCount)]
+    pub fn null_count(&self) -> JsResult<usize> {
+        Ok(self.series.null_count())
+    }
+
+    #[wasm_bindgen(js_name = hasValidity)]
+    pub fn has_validity(&self) -> bool {
+        self.series.has_validity()
+    }
+
+    #[wasm_bindgen(js_name = isNull)]
+    pub fn is_null(&self) -> JsSeries {
+        Self::new(self.series.is_null().into_series())
+    }
+
+    #[wasm_bindgen(js_name = isNot_null)]
+    pub fn is_not_null(&self) -> JsSeries {
+        Self::new(self.series.is_not_null().into_series())
+    }
+
+    #[wasm_bindgen(js_name = isNot_nan)]
+    pub fn is_not_nan(&self) -> JsResult<JsSeries> {
+        let ca = self.series.is_not_nan().map_err(JsPolarsErr::from)?;
+        Ok(ca.into_series().into())
+    }
+
+    #[wasm_bindgen(js_name = isNan)]
+    pub fn is_nan(&self) -> JsResult<JsSeries> {
+        let ca = self.series.is_nan().map_err(JsPolarsErr::from)?;
+        Ok(ca.into_series().into())
+    }
+
+    #[wasm_bindgen(js_name = isFinite)]
+    pub fn is_finite(&self) -> JsResult<JsSeries> {
+        let ca = self.series.is_finite().map_err(JsPolarsErr::from)?;
+        Ok(ca.into_series().into())
+    }
+
+    #[wasm_bindgen(js_name = isInfinite)]
+    pub fn is_infinite(&self) -> JsResult<JsSeries> {
+        let ca = self.series.is_infinite().map_err(JsPolarsErr::from)?;
+        Ok(ca.into_series().into())
+    }
+
+    #[wasm_bindgen(js_name = isUnique)]
+    pub fn is_unique(&self) -> JsResult<JsSeries> {
+        let ca = self.series.is_unique().map_err(JsPolarsErr::from)?;
+        Ok(ca.into_series().into())
+    }
+
+    #[wasm_bindgen(js_name = argTrue)]
+    pub fn arg_true(&self) -> JsResult<JsSeries> {
+        let ca = self.series.arg_true().map_err(JsPolarsErr::from)?;
+        Ok(ca.into_series().into())
+    }
+
+    // pub fn sample_n(&self, n: usize, with_replacement: bool, seed: u64) -> JsResult<JsSeries> {
+    //     let s = self
+    //         .series
+    //         .sample_n(n, with_replacement, seed)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+
+    // pub fn sample_frac(&self, frac: f64, with_replacement: bool, seed: u64) -> JsResult<JsSeries> {
+    //     let s = self
+    //         .series
+    //         .sample_frac(frac, with_replacement, seed)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+    pub fn is_duplicated(&self) -> JsResult<JsSeries> {
+        let ca = self.series.is_duplicated().map_err(JsPolarsErr::from)?;
+        Ok(ca.into_series().into())
+    }
+
+    pub fn explode(&self) -> JsResult<JsSeries> {
+        let s = self.series.explode().map_err(JsPolarsErr::from)?;
+        Ok(s.into())
+    }
+
+    pub fn take_every(&self, n: usize) -> Self {
+        let s = self.series.take_every(n);
+        s.into()
+    }
+    pub fn series_equal(&self, other: &JsSeries, null_equal: bool, strict: bool) -> bool {
+        if strict {
+            self.series.eq(&other.series)
+        } else if null_equal {
+            self.series.series_equal_missing(&other.series)
+        } else {
+            self.series.series_equal(&other.series)
+        }
+    }
+    pub fn eq(&self, rhs: &JsSeries) -> JsResult<JsSeries> {
+        Ok(Self::new(self.series.equal(&rhs.series).into_series()))
+    }
+
+    pub fn neq(&self, rhs: &JsSeries) -> JsResult<JsSeries> {
+        Ok(Self::new(self.series.not_equal(&rhs.series).into_series()))
+    }
+
+    pub fn gt(&self, rhs: &JsSeries) -> JsResult<JsSeries> {
+        Ok(Self::new(self.series.gt(&rhs.series).into_series()))
+    }
+
+    pub fn gt_eq(&self, rhs: &JsSeries) -> JsResult<JsSeries> {
+        Ok(Self::new(self.series.gt_eq(&rhs.series).into_series()))
+    }
+
+    pub fn lt(&self, rhs: &JsSeries) -> JsResult<JsSeries> {
+        Ok(Self::new(self.series.lt(&rhs.series).into_series()))
+    }
+
+    pub fn lt_eq(&self, rhs: &JsSeries) -> JsResult<JsSeries> {
+        Ok(Self::new(self.series.lt_eq(&rhs.series).into_series()))
+    }
+
+    pub fn _not(&self) -> JsResult<JsSeries> {
+        let bool = self.series.bool().map_err(JsPolarsErr::from)?;
+        Ok((!bool).into_series().into())
+    }
+
+    pub fn as_str(&self) -> JsResult<String> {
+        Ok(format!("{:?}", self.series))
+    }
+    #[wasm_bindgen(js_name = toString)]
+    pub fn to_string(&self) -> String {
+        format!("{:?}", self.series)
+    }
+
+    pub fn len(&self) -> usize {
+        self.series.len()
+    }
+    pub fn to_physical(&self) -> Self {
+        let s = self.series.to_physical_repr().into_owned();
+        s.into()
+    }
+    pub fn to_list(&self) -> JsValue {
+        todo!()
+    }
+    pub fn median(&self) -> Option<f64> {
+        match self.series.dtype() {
+            DataType::Boolean => {
+                let s = self.series.cast(&DataType::UInt8).unwrap();
+                s.median()
+            }
+            _ => self.series.median(),
+        }
+    }
+    // pub fn quantile(&self, quantile: f64, interpolation: Wrap<QuantileInterpolOptions>) -> JsValue {
+    //     Wrap(
+    //         self.series
+    //             .quantile_as_series(quantile, interpolation.0)
+    //             .expect("invalid quantile")
+    //             .get(0),
+    //     )
+    //     .into()
+    // }
+    pub fn as_single_ptr(&mut self) -> JsResult<usize> {
+        let ptr = self.series.as_single_ptr().map_err(JsPolarsErr::from)?;
+        Ok(ptr)
+    }
+    pub fn drop_nulls(&self) -> Self {
+        self.series.drop_nulls().into()
+    }
+
+    pub fn fill_null(&self, strategy: &str) -> JsResult<JsSeries> {
+        let strat = match strategy {
+            "backward" => FillNullStrategy::Backward,
+            "forward" => FillNullStrategy::Forward,
+            "min" => FillNullStrategy::Min,
+            "max" => FillNullStrategy::Max,
+            "mean" => FillNullStrategy::Mean,
+            "zero" => FillNullStrategy::Zero,
+            "one" => FillNullStrategy::One,
+            s => panic!("Strategy {} not supported", s),
+        };
+        let series = self.series.fill_null(strat).map_err(JsPolarsErr::from)?;
+        Ok(JsSeries::new(series))
+    }
+    #[cfg(feature = "is_in")]
+    pub fn is_in(&self, other: &JsSeries) -> JsResult<JsSeries> {
+        let out = self
+            .series
+            .is_in(&other.series)
+            .map_err(JsPolarsErr::from)?;
+        Ok(out.into_series().into())
+    }
+
+    pub fn clone(&self) -> Self {
+        JsSeries::new(self.series.clone())
+    }
+
+    pub fn apply_lambda() -> JsResult<JsSeries> {
+        todo!()
+    }
+    pub fn shift(&self, periods: i64) -> Self {
+        let s = self.series.shift(periods);
+        JsSeries::new(s)
+    }
+    pub fn zip_with(&self, mask: &JsSeries, other: &JsSeries) -> JsResult<JsSeries> {
+        let mask = mask.series.bool().map_err(JsPolarsErr::from)?;
+        let s = self
+            .series
+            .zip_with(mask, &other.series)
+            .map_err(JsPolarsErr::from)?;
+        Ok(JsSeries::new(s))
+    }
+
+    pub fn str_lengths(&self) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca.str_lengths().into_series();
+        Ok(JsSeries::new(s))
+    }
+
+    pub fn str_contains(&self, pat: &str) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca.contains(pat).map_err(JsPolarsErr::from)?.into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_json_path_match(&self, pat: &str) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca
+            .json_path_match(pat)
+            .map_err(JsPolarsErr::from)?
+            .into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_extract(&self, pat: &str, group_index: usize) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca
+            .extract(pat, group_index)
+            .map_err(JsPolarsErr::from)?
+            .into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_replace(&self, pat: &str, val: &str) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca
+            .replace(pat, val)
+            .map_err(JsPolarsErr::from)?
+            .into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_replace_all(&self, pat: &str, val: &str) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca
+            .replace_all(pat, val)
+            .map_err(JsPolarsErr::from)?
+            .into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_to_uppercase(&self) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca.to_uppercase().into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_to_lowercase(&self) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca.to_lowercase().into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_slice(&self, start: i64, length: Option<u64>) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca
+            .str_slice(start, length)
+            .map_err(JsPolarsErr::from)?
+            .into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_hex_encode(&self) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca.hex_encode().into_series();
+        Ok(s.into())
+    }
+    pub fn str_hex_decode(&self, strict: Option<bool>) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca
+            .hex_decode(strict)
+            .map_err(JsPolarsErr::from)?
+            .into_series();
+
+        Ok(s.into())
+    }
+    pub fn str_base64_encode(&self) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca.base64_encode().into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_base64_decode(&self, strict: Option<bool>) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca
+            .base64_decode(strict)
+            .map_err(JsPolarsErr::from)?
+            .into_series();
+        Ok(s.into())
+    }
+
+    pub fn strftime(&self, fmt: &str) -> JsResult<JsSeries> {
+        let s = self.series.strftime(fmt).map_err(JsPolarsErr::from)?;
+        Ok(s.into())
+    }
+
+    // pub fn arr_lengths(&self) -> JsResult<JsSeries> {
+    //     let ca = self.series.list().map_err(JsPolarsErr::from)?;
+    //     let s = ca.lst_lengths().into_series();
+    //     Ok(JsSeries::new(s))
+    // }
+
+    // // pub fn timestamp(&self, tu: Wrap<TimeUnit>) -> JsResult<JsSeries> {
+    // //     let ca = self.series.timestamp(tu.0).map_err(JsPolarsErr::from)?;
+    // //     Ok(ca.into_series().into())
+    // // }
+    // pub fn get_list(&self, index: usize) -> Option<JsSeries> {
+    //     if let Ok(ca) = &self.series.list() {
+    //         let s = ca.get(index);
+    //         s.map(|s| s.into())
+    //     } else {
+    //         None
+    //     }
+    // }
+    // pub fn rolling_sum(
+    //     &self,
+    //     window_size: usize,
+    //     weights: Option<Vec<f64>>,
+    //     min_periods: usize,
+    //     center: bool,
+    // ) -> JsResult<JsSeries> {
+    //     let options = RollingOptions {
+    //         window_size,
+    //         weights,
+    //         min_periods,
+    //         center,
+    //     };
+
+    //     let s = self
+    //         .series
+    //         .rolling_sum(options)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+
+    // pub fn rolling_mean(
+    //     &self,
+    //     window_size: usize,
+    //     weights: Option<Vec<f64>>,
+    //     min_periods: usize,
+    //     center: bool,
+    // ) -> JsResult<JsSeries> {
+    //     let options = RollingOptions {
+    //         window_size,
+    //         weights,
+    //         min_periods,
+    //         center,
+    //     };
+
+    //     let s = self
+    //         .series
+    //         .rolling_mean(options)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+
+    // pub fn rolling_median(
+    //     &self,
+    //     window_size: usize,
+    //     weights: Option<Vec<f64>>,
+    //     min_periods: usize,
+    //     center: bool,
+    // ) -> JsResult<JsSeries> {
+    //     let options = RollingOptions {
+    //         window_size,
+    //         weights,
+    //         min_periods,
+    //         center,
+    //     };
+
+    //     let s = self
+    //         .series
+    //         .rolling_median(options)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+
+    // pub fn rolling_quantile(
+    //     &self,
+    //     quantile: f64,
+    //     interpolation: Wrap<QuantileInterpolOptions>,
+    //     window_size: usize,
+    //     weights: Option<Vec<f64>>,
+    //     min_periods: usize,
+    //     center: bool,
+    // ) -> JsResult<JsSeries> {
+    //     let options = RollingOptions {
+    //         window_size,
+    //         weights,
+    //         min_periods,
+    //         center,
+    //     };
+
+    //     let interpol = interpolation.0;
+    //     let s = self
+    //         .series
+    //         .rolling_quantile(quantile, interpol, options)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+
+    // pub fn rolling_max(
+    //     &self,
+    //     window_size: usize,
+    //     weights: Option<Vec<f64>>,
+    //     min_periods: usize,
+    //     center: bool,
+    // ) -> JsResult<JsSeries> {
+    //     let options = RollingOptions {
+    //         window_size,
+    //         weights,
+    //         min_periods,
+    //         center,
+    //     };
+
+    //     let s = self
+    //         .series
+    //         .rolling_max(options)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+    // pub fn rolling_min(
+    //     &self,
+    //     window_size: usize,
+    //     weights: Option<Vec<f64>>,
+    //     min_periods: usize,
+    //     center: bool,
+    // ) -> JsResult<JsSeries> {
+    //     let options = RollingOptions {
+    //         window_size,
+    //         weights,
+    //         min_periods,
+    //         center,
+    //     };
+
+    //     let s = self
+    //         .series
+    //         .rolling_min(options)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+
+    // pub fn rolling_var(
+    //     &self,
+    //     window_size: usize,
+    //     weights: Option<Vec<f64>>,
+    //     min_periods: usize,
+    //     center: bool,
+    // ) -> JsResult<JsSeries> {
+    //     let options = RollingOptions {
+    //         window_size,
+    //         weights,
+    //         min_periods,
+    //         center,
+    //     };
+
+    //     let s = self
+    //         .series
+    //         .rolling_var(options)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+
+    // pub fn rolling_std(
+    //     &self,
+    //     window_size: usize,
+    //     weights: Option<Vec<f64>>,
+    //     min_periods: usize,
+    //     center: bool,
+    // ) -> JsResult<JsSeries> {
+    //     let options = RollingOptions {
+    //         window_size,
+    //         weights,
+    //         min_periods,
+    //         center,
+    //     };
+
+    //     let s = self
+    //         .series
+    //         .rolling_std(options)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+    // pub fn year(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.year().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn month(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.month().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn weekday(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.weekday().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn week(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.week().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn day(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.day().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn ordinal_day(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.ordinal_day().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn hour(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.hour().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn minute(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.minute().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn second(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.second().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn nanosecond(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.nanosecond().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn dt_epoch_seconds(&self) -> JsResult<JsSeries> {
+    //     let ms = self
+    //         .series
+    //         .timestamp(TimeUnit::Milliseconds)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok((ms / 1000).into_series().into())
+    // }
+
+    // pub fn peak_max(&self) -> Self {
+    //     self.series.peak_max().into_series().into()
+    // }
+
+    // pub fn peak_min(&self) -> Self {
+    //     self.series.peak_min().into_series().into()
+    // }
+
+    // pub fn n_unique(&self) -> JsResult<usize> {
+    //     let n = self.series.n_unique().map_err(JsPolarsErr::from)?;
+    //     Ok(n)
+    // }
+
+    // pub fn is_first(&self) -> JsResult<JsSeries> {
+    //     let out = self
+    //         .series
+    //         .is_first()
+    //         .map_err(JsPolarsErr::from)?
+    //         .into_series();
+    //     Ok(out.into())
+    // }
+
+    // pub fn round(&self, decimals: u32) -> JsResult<JsSeries> {
+    //     let s = self.series.round(decimals).map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+
+    // pub fn floor(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.floor().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+
+    // pub fn shrink_to_fit(&mut self) {
+    //     self.series.shrink_to_fit();
+    // }
+
+    // pub fn dot(&self, other: &JsSeries) -> Option<f64> {
+    //     self.series.dot(&other.series)
+    // }
+
+    // pub fn hash(&self, k0: u64, k1: u64, k2: u64, k3: u64) -> Self {
+    //     let hb = ahash::RandomState::with_seeds(k0, k1, k2, k3);
+    //     self.series.hash(hb).into_series().into()
+    // }
+    // pub fn reinterpret(&self, signed: bool) -> JsResult<JsSeries> {
+    //     let s = reinterpret(&self.series, signed).map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+
+    // pub fn mode(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.mode().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+
+    // pub fn interpolate(&self) -> Self {
+    //     let s = self.series.interpolate();
+    //     s.into()
+    // }
+    // pub fn rank(&self, method: &str, reverse: bool) -> JsResult<JsSeries> {
+    //     let method = str_to_rankmethod(method).unwrap();
+    //     let options = RankOptions {
+    //         method,
+    //         descending: reverse,
+    //     };
+    //     Ok(self.series.rank(options).into())
+    // }
+
+    // pub fn diff(&self, n: usize, null_behavior: &str) -> JsResult<JsSeries> {
+    //     let null_behavior = str_to_null_behavior(null_behavior)?;
+    //     Ok(self.series.diff(n, null_behavior).into())
+    // }
+
+    // pub fn skew(&self, bias: bool) -> JsResult<Option<f64>> {
+    //     let out = self.series.skew(bias).map_err(JsPolarsErr::from)?;
+    //     Ok(out)
+    // }
+    // pub fn kurtosis(&self, fisher: bool, bias: bool) -> JsResult<Option<f64>> {
+    //     let out = self
+    //         .series
+    //         .kurtosis(fisher, bias)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok(out)
+    // }
+    // pub fn cast(&self, dtype: &str, strict: bool) -> JsResult<JsSeries> {
+    //     let dtype = str_to_polarstype(dtype);
+    //     let out = if strict {
+    //         self.series.strict_cast(&dtype)
+    //     } else {
+    //         self.series.cast(&dtype)
+    //     };
+    //     let out = out.map_err(JsPolarsErr::from)?;
+    //     Ok(out.into())
+    // }
+    // pub fn abs(&self) -> JsResult<JsSeries> {
+    //     let out = self.series.abs().map_err(JsPolarsErr::from)?;
+    //     Ok(out.into())
+    // }
+
+    // pub fn reshape(&self, dims: Vec<i64>) -> JsResult<JsSeries> {
+    //     let out = self.series.reshape(&dims).map_err(JsPolarsErr::from)?;
+    //     Ok(out.into())
+    // }
+
+    // pub fn extend_constant(&self, value: Wrap<AnyValue>, n: usize) -> JsResult<JsSeries> {
+    //     let value = value.0;
+    //     let out = self
+    //         .series
+    //         .extend_constant(value, n)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok(out.into())
+    // }
+
+}
+
+
+
+// init_method!(new_bool, bool);
+// init_method!(new_i8, i8);
+// init_method!(new_i16, i16);
+// init_method!(new_i32, i32);
+// init_method!(new_i64, i64);
+// init_method!(new_u8, u8);
+// init_method!(new_u16, u16);
+// init_method!(new_u32, u32);
+// init_method!(new_u64, u64);
+// init_method!(new_f32, f32);
+// init_method!(new_f64, f64);
+
+pub fn reinterpret(s: &Series, signed: bool) -> polars::prelude::Result<Series> {
+    match (s.dtype(), signed) {
+        (DataType::UInt64, true) => {
+            let ca = s.u64().unwrap();
+            Ok(ca.reinterpret_signed().into_series())
+        }
+        (DataType::UInt64, false) => Ok(s.clone()),
+        (DataType::Int64, false) => {
+            let ca = s.i64().unwrap();
+            Ok(ca.reinterpret_unsigned().into_series())
+        }
+        (DataType::Int64, true) => Ok(s.clone()),
+        _ => Err(PolarsError::ComputeError(
+            "reinterpret is only allowed for 64bit integers dtype, use cast otherwise".into(),
+        )),
     }
 }

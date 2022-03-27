@@ -17,53 +17,57 @@ lto = true
 [features]
 
 [dependencies]
+ahash = "0.7"
+
 serde = { version = "1.0", features = ["derive"] }
-wasm-bindgen = { version = "0.2.78", features = ["serde-serialize"] }
-js-sys = "0.3.55"
-wee_alloc = { version = "0.4.2", optional = true }
+wasm-bindgen = "0.2.34"
+js-sys = "0.3.56"
 thiserror = "1.0.20"
-polars-core = { path = "../polars/polars-core", default-features = false }
+paste = "1.0.6"
 
 
 [dependencies.polars]
 features = [
   "abs",
-  # "arange", 
-  # "concat_str",
-  "csv-file",
+  "arange",
   "cum_agg",
-  "dataframe_arithmetic",
   "diagonal_concat",
   "diff",
   "dot_diagram",
   "dot_product",
+  "dtype-categorical",
   "dtype-full",
-  # "extract_jsonpath",
-  # "horizontal_concat",
+  "extract_jsonpath",
+  "horizontal_concat",
   "interpolate",
   "is_first",
-  "is_in",
-  "json",
-  # "lazy_regex",
   "list",
+  "log",
   "mode",
+  "moment",
+  "object",
+  "pct_change",
   "performant",
   "private",
+  "product",
   "rank",
+  "reinterpret",
   "rolling_window",
   "round_series",
-  "serde",
-  "simd",
+  "row_hash",
+  "rows",
+  "temporal",
   "string_encoding",
   "strings",
-  "temporal",
-  "zip_with",
+  "true_div",
+  "unique_counts",
 ]
 default-features = false
-path = "../polars"
+git = "https://github.com/pola-rs/polars"
+rev = "12d8c73a13f6e119abfb5bd1f953dbfb2c4748da"
 
 [dependencies.web-sys]
-version = "0.3.55"
+version = "0.3.56"
 features = ["console"]
 
 [target."cfg(debug_assertions)".dependencies]

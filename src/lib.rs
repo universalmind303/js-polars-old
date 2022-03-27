@@ -1,10 +1,11 @@
-mod series;
+mod conversion;
 mod dataframe;
+mod datatypes;
 mod error;
-
+mod series;
+mod utils;
 use wasm_bindgen::prelude::*;
 pub type JsResult<T> = std::result::Result<T, JsValue>;
-
 
 #[wasm_bindgen]
 extern "C" {
