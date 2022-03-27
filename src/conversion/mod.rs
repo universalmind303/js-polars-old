@@ -28,7 +28,9 @@ impl<T> From<T> for Wrap<T> {
 }
 
 impl WasmDescribe for Wrap<QuantileInterpolOptions> {
-  fn describe() {}
+  fn describe() {
+    wasm_bindgen::describe::inform(wasm_bindgen::describe::STRING)
+  }
 }
 
 impl FromWasmAbi for Wrap<QuantileInterpolOptions> {
@@ -50,43 +52,55 @@ impl FromWasmAbi for Wrap<QuantileInterpolOptions> {
 }
 
 impl WasmDescribe for Wrap<AnyValue<'_>> {
-  fn describe() {}
+  fn describe() {
+    wasm_bindgen::describe::inform(wasm_bindgen::describe::ENUM)
+  }
 }
 
 impl FromWasmAbi for Wrap<AnyValue<'_>> {
-  type Abi = <JsValue as IntoWasmAbi>::Abi;
+  type Abi = u32;
 
-  #[inline]
-  unsafe fn from_abi(js: Self::Abi) -> Self {
-    let jsv: JsValue = JsValue::from_abi(js);
+  unsafe fn from_abi(js: u32) -> Self {
+    let jsv = JsValue::from_abi(js);
+    todo!()
+    // Wrap(AnyValue::from_js(jsv))
+  }
+}
+
+pub trait FromJsValue: Sized + Send {
+  fn from_js(obj: JsValue) -> Self;
+}
+
+impl FromJsValue for AnyValue<'_> {
+  fn from_js(jsv: JsValue) -> Self {
     if jsv.is_null() || jsv.is_undefined() {
-      return Wrap(AnyValue::Null);
+      return AnyValue::Null;
     }
     let ty = jsv.js_typeof().as_string().unwrap();
 
     match ty.as_ref() {
       "boolean" => {
         let b: bool = js_sys::Boolean::unchecked_from_js(jsv).into();
-        Wrap(AnyValue::Boolean(b))
+        AnyValue::Boolean(b)
       }
       "number" => {
         let n: f64 = js_sys::Number::unchecked_from_js(jsv).into();
-        Wrap(AnyValue::Float64(n))
+        AnyValue::Float64(n)
       }
       "string" => {
         let s: String = js_sys::JsString::unchecked_from_js(jsv).into();
-        Wrap(AnyValue::Utf8(Box::leak::<'_>(s.into_boxed_str())))
+        AnyValue::Utf8(Box::leak::<'_>(s.into_boxed_str()))
       }
       "bigint" => {
         let num = jsv.as_string().unwrap().parse::<u64>().unwrap();
-        Wrap(AnyValue::UInt64(num))
+        AnyValue::UInt64(num)
       }
       _ => {
         if js_sys::Date::is_type_of(&jsv) {
           let js_date = js_sys::Date::unchecked_from_js(jsv);
           let ms = js_date.get_milliseconds();
 
-          Wrap(AnyValue::Datetime(ms as i64, TimeUnit::Milliseconds, &None))
+          AnyValue::Datetime(ms as i64, TimeUnit::Milliseconds, &None)
         } else if js_sys::Array::is_array(&jsv) {
           todo!()
         } else {
