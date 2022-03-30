@@ -17,14 +17,18 @@ lto = true
 [features]
 
 [dependencies]
+lazy_static = "1.4"
 ahash = "0.7"
-
-serde = { version = "1.0", features = ["derive"] }
+console_error_panic_hook = "0.1"
 wasm-bindgen = { version = "0.2.79"}
 js-sys = "0.3.56"
 thiserror = "1.0.20"
 paste = "1.0.6"
-
+futures-channel = "0.3.21"
+wasm-bindgen-futures = "0.4.29"
+wasm-bindgen-rayon = { version = "1.0" }
+rayon = "1.5"
+spmc = "0.3.0"
 
 [dependencies.polars]
 features = [
@@ -32,12 +36,13 @@ features = [
   "arange",
   # "cum_agg",
   # "diagonal_concat",
+  "dataframe_arithmetic",
   "diff",
   "dot_diagram",
   "dot_product",
   "dtype-categorical",
   "dtype-full",
-  "extract_jsonpath",
+  # "extract_jsonpath",
   # "horizontal_concat",
   "interpolate",
   "is_first",
@@ -49,6 +54,7 @@ features = [
   "pct_change",
   "performant",
   "private",
+  # "fmt",
   "product",
   "rank",
   "reinterpret",
@@ -68,10 +74,22 @@ rev = "12d8c73a13f6e119abfb5bd1f953dbfb2c4748da"
 
 [dependencies.web-sys]
 version = "0.3.56"
-features = ["console"]
+features = [
+  'console',
+  'CanvasRenderingContext2d',
+  'ErrorEvent',
+  'Event',
+  'ImageData',
+  'Navigator',
+  'Window',
+  'Worker',
+  'WorkerOptions',
+  'WorkerType',
+  'DedicatedWorkerGlobalScope',
+  'MessageEvent',
+]
 
-[target."cfg(debug_assertions)".dependencies]
-console_error_panic_hook = "0.1.5"
+
 
 
 [workspace]

@@ -6,14 +6,15 @@ const dist = path.resolve(__dirname, "dist");
 module.exports = {
   devtool: 'source-map',
   entry: {
-    index: "./pkg/index.js"
+    index: "./index.js"
   },
   output: {
+    publicPath: '/dist/',
     path: dist,
     library: {
-      type: 'module',
+      type: 'module'
     },
-    filename: "[name].js"
+    filename: "polars.js"
   },
   devServer: {
     contentBase: dist,
@@ -24,7 +25,7 @@ module.exports = {
   //   }),
   // ],
   experiments: {
-    asyncWebAssembly: true,
+    // asyncWebAssembly: true,
     outputModule: true,
     syncWebAssembly: true,
     futureDefaults: true,

@@ -52,8 +52,13 @@ extern "C" {
 
     #[wasm_bindgen(method, getter = ptr)]
     fn ptr(this: &ExternSeries) -> f64;
+
+    #[wasm_bindgen(static_method_of = ExternSeries)]
+    fn wrap(ptr: u32) -> ExternSeries;
+
     #[wasm_bindgen(typescript_type = "Series[]")]
     pub type SeriesArray;
+
 }
 
 extern_struct!(ExternSeries, JsSeries);
@@ -61,6 +66,9 @@ extern_iterator!(SeriesArray, ExternSeries, JsSeries);
 
 #[wasm_bindgen(js_class=Series)]
 impl JsSeries {
+    pub fn wrap(ptr: u32) -> JsSeries {
+        unsafe { JsSeries::from_abi(ptr) }
+    }
     pub fn new_str(name: &str, values: &js_sys::Array) -> JsResult<JsSeries> {
         let series = Utf8Chunked::from_iter_options(name, values.iter().map(|v| v.as_string()))
             .into_series();
@@ -358,6 +366,25 @@ impl JsSeries {
     }
 
     #[wasm_bindgen(js_name = isNotNull)]
+    ///
+    /// __Get mask of non null values.__
+    ///
+    /// *`undefined` values are treated as null*
+    /// ___
+    /// @example
+    /// ```
+    /// > const s = pl.Series("a", [1.0, undefined, 2.0, 3.0, null])
+    /// > s.isNotNull()
+    /// shape: (5,)
+    /// Series: 'a' [bool]
+    /// [
+    ///         true
+    ///         false
+    ///         true
+    ///         true
+    ///         false
+    /// ]
+    /// ```
     pub fn is_not_null(&self) -> JsSeries {
         Self::new(self.series.is_not_null().into_series())
     }
@@ -563,14 +590,14 @@ impl JsSeries {
         Ok(s.into())
     }
 
-    pub fn str_json_path_match(&self, pat: &str) -> JsResult<JsSeries> {
-        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-        let s = ca
-            .json_path_match(pat)
-            .map_err(JsPolarsErr::from)?
-            .into_series();
-        Ok(s.into())
-    }
+    // pub fn str_json_path_match(&self, pat: &str) -> JsResult<JsSeries> {
+    //     let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+    //     let s = ca
+    //         .json_path_match(pat)
+    //         .map_err(JsPolarsErr::from)?
+    //         .into_series();
+    //     Ok(s.into())
+    // }
 
     pub fn str_extract(&self, pat: &str, group_index: usize) -> JsResult<JsSeries> {
         let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
@@ -672,175 +699,7 @@ impl JsSeries {
             None
         }
     }
-    // pub fn rolling_sum(
-    //     &self,
-    //     window_size: usize,
-    //     weights: Option<Vec<f64>>,
-    //     min_periods: usize,
-    //     center: bool,
-    // ) -> JsResult<JsSeries> {
-    //     let options = RollingOptions {
-    //         window_size,
-    //         weights,
-    //         min_periods,
-    //         center,
-    //     };
 
-    //     let s = self
-    //         .series
-    //         .rolling_sum(options)
-    //         .map_err(JsPolarsErr::from)?;
-    //     Ok(s.into())
-    // }
-
-    // pub fn rolling_mean(
-    //     &self,
-    //     window_size: usize,
-    //     weights: Option<Vec<f64>>,
-    //     min_periods: usize,
-    //     center: bool,
-    // ) -> JsResult<JsSeries> {
-    //     let options = RollingOptions {
-    //         window_size,
-    //         weights,
-    //         min_periods,
-    //         center,
-    //     };
-
-    //     let s = self
-    //         .series
-    //         .rolling_mean(options)
-    //         .map_err(JsPolarsErr::from)?;
-    //     Ok(s.into())
-    // }
-
-    // pub fn rolling_median(
-    //     &self,
-    //     window_size: usize,
-    //     weights: Option<Vec<f64>>,
-    //     min_periods: usize,
-    //     center: bool,
-    // ) -> JsResult<JsSeries> {
-    //     let options = RollingOptions {
-    //         window_size,
-    //         weights,
-    //         min_periods,
-    //         center,
-    //     };
-
-    //     let s = self
-    //         .series
-    //         .rolling_median(options)
-    //         .map_err(JsPolarsErr::from)?;
-    //     Ok(s.into())
-    // }
-
-    // pub fn rolling_quantile(
-    //     &self,
-    //     quantile: f64,
-    //     interpolation: Wrap<QuantileInterpolOptions>,
-    //     window_size: usize,
-    //     weights: Option<Vec<f64>>,
-    //     min_periods: usize,
-    //     center: bool,
-    // ) -> JsResult<JsSeries> {
-    //     let options = RollingOptions {
-    //         window_size,
-    //         weights,
-    //         min_periods,
-    //         center,
-    //     };
-
-    //     let interpol = interpolation.0;
-    //     let s = self
-    //         .series
-    //         .rolling_quantile(quantile, interpol, options)
-    //         .map_err(JsPolarsErr::from)?;
-    //     Ok(s.into())
-    // }
-
-    // pub fn rolling_max(
-    //     &self,
-    //     window_size: usize,
-    //     weights: Option<Vec<f64>>,
-    //     min_periods: usize,
-    //     center: bool,
-    // ) -> JsResult<JsSeries> {
-    //     let options = RollingOptions {
-    //         window_size,
-    //         weights,
-    //         min_periods,
-    //         center,
-    //     };
-
-    //     let s = self
-    //         .series
-    //         .rolling_max(options)
-    //         .map_err(JsPolarsErr::from)?;
-    //     Ok(s.into())
-    // }
-    // pub fn rolling_min(
-    //     &self,
-    //     window_size: usize,
-    //     weights: Option<Vec<f64>>,
-    //     min_periods: usize,
-    //     center: bool,
-    // ) -> JsResult<JsSeries> {
-    //     let options = RollingOptions {
-    //         window_size,
-    //         weights,
-    //         min_periods,
-    //         center,
-    //     };
-
-    //     let s = self
-    //         .series
-    //         .rolling_min(options)
-    //         .map_err(JsPolarsErr::from)?;
-    //     Ok(s.into())
-    // }
-
-    // pub fn rolling_var(
-    //     &self,
-    //     window_size: usize,
-    //     weights: Option<Vec<f64>>,
-    //     min_periods: usize,
-    //     center: bool,
-    // ) -> JsResult<JsSeries> {
-    //     let options = RollingOptions {
-    //         window_size,
-    //         weights,
-    //         min_periods,
-    //         center,
-    //     };
-
-    //     let s = self
-    //         .series
-    //         .rolling_var(options)
-    //         .map_err(JsPolarsErr::from)?;
-    //     Ok(s.into())
-    // }
-
-    // pub fn rolling_std(
-    //     &self,
-    //     window_size: usize,
-    //     weights: Option<Vec<f64>>,
-    //     min_periods: usize,
-    //     center: bool,
-    // ) -> JsResult<JsSeries> {
-    //     let options = RollingOptions {
-    //         window_size,
-    //         weights,
-    //         min_periods,
-    //         center,
-    //     };
-
-    //     let s = self
-    //         .series
-    //         .rolling_std(options)
-    //         .map_err(JsPolarsErr::from)?;
-    //     Ok(s.into())
-    // }
     pub fn year(&self) -> JsResult<JsSeries> {
         let s = self.series.year().map_err(JsPolarsErr::from)?;
         Ok(s.into_series().into())
@@ -1088,55 +947,54 @@ impl_set_at_idx!(set_at_idx_i16, i16, i16, Int16);
 impl_set_at_idx!(set_at_idx_i32, i32, i32, Int32);
 impl_set_at_idx!(set_at_idx_i64, i64, i64, Int64);
 
-
-// macro_rules! impl_new_numeric {
-//     ($name:ident, $builder:ident, $type:ty) => {
-//         #[wasm_bindgen(js_class=Series)]
-//         impl JsSeries {
-//             pub fn $name(name: &str, values: &js_sys::Array) -> JsResult<JsSeries> {
-//                 let series = $builder::from_iter_options(
-//                     name,
-//                     values
-//                         .iter()
-//                         .map(|v: JsValue| v.as_f64().map(|n| n as $type)),
-//                 )
-//                 .into_series();
-//                 Ok(JsSeries { series })
-//             }
-//         }
-//     };
-// }
+macro_rules! impl_new_numeric {
+    ($name:ident, $builder:ident, $type:ty) => {
+        #[wasm_bindgen(js_class=Series)]
+        impl JsSeries {
+            pub fn $name(name: &str, values: &js_sys::Array) -> JsResult<JsSeries> {
+                let series = $builder::from_iter_options(
+                    name,
+                    values
+                        .iter()
+                        .map(|v: JsValue| v.as_f64().map(|n| n as $type)),
+                )
+                .into_series();
+                Ok(JsSeries { series })
+            }
+        }
+    };
+}
 // impl_new_numeric!(new_i8, Int8Chunked, i8);
-// impl_new_numeric!(new_i16, Int16Chunked, i16);
-// impl_new_numeric!(new_i32, Int32Chunked, i32);
-// impl_new_numeric!(new_u8, UInt8Chunked, u8);
-// impl_new_numeric!(new_u16, UInt16Chunked, u16);
-// impl_new_numeric!(new_u32, UInt32Chunked, u32);
-// impl_new_numeric!(new_f32, Float32Chunked, f32);
+impl_new_numeric!(new_i16, Int16Chunked, i16);
+impl_new_numeric!(new_i32, Int32Chunked, i32);
+impl_new_numeric!(new_u8, UInt8Chunked, u8);
+impl_new_numeric!(new_u16, UInt16Chunked, u16);
+impl_new_numeric!(new_u32, UInt32Chunked, u32);
+impl_new_numeric!(new_f32, Float32Chunked, f32);
 // impl_new_numeric!(new_f64, Float64Chunked, f64);
 
-// macro_rules! impl_get {
-//     ($name:ident, $series_variant:ident, $type:ty) => {
-//         #[wasm_bindgen(js_class=Series)]
-//         impl JsSeries {
-//             pub fn $name(&self, index: f64) -> Option<$type> {
-//                 if let Ok(ca) = self.series.$series_variant() {
-//                     let index = if index < 0.0 {
-//                         (ca.len() as f64 + index) as usize
-//                     } else {
-//                         index as usize
-//                     };
-//                     ca.get(index)
-//                 } else {
-//                     None
-//                 }
-//             }
-//         }
-//     };
-// }
+macro_rules! impl_get {
+    ($name:ident, $series_variant:ident, $type:ty) => {
+        #[wasm_bindgen(js_class=Series)]
+        impl JsSeries {
+            pub fn $name(&self, index: f64) -> Option<$type> {
+                if let Ok(ca) = self.series.$series_variant() {
+                    let index = if index < 0.0 {
+                        (ca.len() as f64 + index) as usize
+                    } else {
+                        index as usize
+                    };
+                    ca.get(index)
+                } else {
+                    None
+                }
+            }
+        }
+    };
+}
 
-// impl_get!(get_datetime, datetime, i64);
-// impl_get!(get_duration, duration, i64);
+impl_get!(get_datetime, datetime, i64);
+impl_get!(get_duration, duration, i64);
 
 macro_rules! impl_eq_num {
     ($name:ident, $variant:ident, $type:ty) => {
@@ -1209,15 +1067,15 @@ macro_rules! impl_eq_num {
     };
 }
 
-// impl_eq_num!(_u8, u8, u8);
-// impl_eq_num!(_u16, u16, u16);
-// impl_eq_num!(_u32, u32, u32);
-// impl_eq_num!(_u64, u64, u64);
-// impl_eq_num!(_i8, i8, i8);
-// impl_eq_num!(_i16, i16, i16);
-// impl_eq_num!(_i32, i32, i32);
-// impl_eq_num!(_i64, i64, i64);
-// impl_eq_num!(_f32, f32, f32);
+impl_eq_num!(_u8, u8, u8);
+impl_eq_num!(_u16, u16, u16);
+impl_eq_num!(_u32, u32, u32);
+impl_eq_num!(_u64, u64, u64);
+impl_eq_num!(_i8, i8, i8);
+impl_eq_num!(_i16, i16, i16);
+impl_eq_num!(_i32, i32, i32);
+impl_eq_num!(_i64, i64, i64);
+impl_eq_num!(_f32, f32, f32);
 impl_eq_num!(_f64, f64, f64);
 
 pub fn reinterpret(s: &Series, signed: bool) -> polars::prelude::Result<Series> {
@@ -1236,4 +1094,33 @@ pub fn reinterpret(s: &Series, signed: bool) -> polars::prelude::Result<Series> 
             "reinterpret is only allowed for 64bit integers dtype, use cast otherwise".into(),
         )),
     }
+}
+pub(crate) fn to_series_collection(iter: js_sys::Iterator) -> Vec<Series> {
+    let cols: Vec<Series> = iter
+        .into_iter()
+        .map(|jsv| {
+            let jsv = jsv.unwrap();
+            let key = JsValue::from_str("ptr");
+            let ptr = js_sys::Reflect::get(&jsv, &key).unwrap();
+            let n: f64 = js_sys::Number::unchecked_from_js(ptr).into();
+            let ser: JsSeries = unsafe { JsSeries::from_abi(n as u32) };
+            ser.series
+        })
+        .collect();
+    cols
+}
+
+pub(crate) fn to_jsseries_collection(s: Vec<Series>) -> Vec<u32> {
+    use wasm_bindgen::convert::IntoWasmAbi;
+    let s: Vec<u32> = s
+        .into_iter()
+        .map(move |series| {
+            let js_ser = JsSeries { series };
+
+            js_ser.into_abi()
+        })
+        .collect();
+
+    s
+    // todo!()
 }
