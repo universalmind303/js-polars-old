@@ -11,9 +11,7 @@ module.exports = {
   output: {
     publicPath: '/dist/',
     path: dist,
-    library: {
-      type: 'module'
-    },
+
     filename: "polars.js"
   },
   devServer: {
@@ -26,7 +24,7 @@ module.exports = {
   // ],
   experiments: {
     // asyncWebAssembly: true,
-    outputModule: true,
+    // outputModule: true,
     syncWebAssembly: true,
     futureDefaults: true,
   },

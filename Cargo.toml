@@ -17,9 +17,8 @@ lto = true
 [features]
 
 [dependencies]
-lazy_static = "1.4"
 ahash = "0.7"
-console_error_panic_hook = "0.1"
+console_error_panic_hook = "0.1.7"
 wasm-bindgen = { version = "0.2.79"}
 js-sys = "0.3.56"
 thiserror = "1.0.20"
@@ -34,7 +33,7 @@ spmc = "0.3.0"
 features = [
   "abs",
   "arange",
-  # "cum_agg",
+  "cum_agg",
   # "diagonal_concat",
   "dataframe_arithmetic",
   "diff",
@@ -53,7 +52,7 @@ features = [
   "object",
   "pct_change",
   "performant",
-  "private",
+  # "private",
   # "fmt",
   "product",
   "rank",
@@ -62,15 +61,15 @@ features = [
   "round_series",
   "row_hash",
   # "rows",
-  "temporal",
+  # "temporal",
   "string_encoding",
   "strings",
   "true_div",
   "unique_counts",
+  "wasm"
 ]
 default-features = false
-git = "https://github.com/pola-rs/polars"
-rev = "12d8c73a13f6e119abfb5bd1f953dbfb2c4748da"
+path =  "../polars"
 
 [dependencies.web-sys]
 version = "0.3.56"

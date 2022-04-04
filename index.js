@@ -1,3 +1,5 @@
-console.log('index.js')
-const w = new Worker('./worker.js', {type: 'module'})
-w.postMessage(1)
+let w = new Worker(new URL('./worker.js', import.meta.url), {
+  type: 'module'
+})
+
+w.postMessage("hello")

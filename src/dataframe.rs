@@ -150,7 +150,6 @@ impl JsDataFrame {
       _ => panic!("not supported"),
     };
     let left_on: Vec<String> = left_on.iter().map(|v| v.as_string().unwrap()).collect();
-
     let right_on: Vec<String> = right_on.iter().map(|v| v.as_string().unwrap()).collect();
 
     let df = self
@@ -407,6 +406,7 @@ impl JsDataFrame {
     subset: Option<js_sys::Array>,
     keep: &str,
   ) -> JsResult<JsDataFrame> {
+    // todo!()
     let keep = match keep {
       "first" => UniqueKeepStrategy::First,
       "last" => UniqueKeepStrategy::Last,
@@ -418,16 +418,15 @@ impl JsDataFrame {
     });
 
     let subset = subset.as_ref().map(|v| v.as_ref());
-    crate::console_log!("{:#?}", df);
-    let df = pool.install(|| {
-      match maintain_order {
+
+    crate::console_log!("df={:#?}", self.df);
+
+    let df = match maintain_order {
         true => self.df.unique_stable(subset, keep),
         false => self.df.unique(subset, keep),
       }
       .map_err(JsPolarsErr::from)
       .unwrap();
-    });
-
     Ok(JsDataFrame::new(df))
   }
   pub fn lazy(&self) -> Self {

@@ -1,15 +1,16 @@
 /* eslint-disable no-undef */
-import pl from "./polars/index";
-import pli from "./pkg";
-const col1 = pl.Series("col_1", [1, 2, 3]).inner();
-const col2 = pl.Series("col_2", [1, 2, 3]).inner();
+// import pl from "./polars/index";
+import * as pl from "./pkg/browser/polars.js";
+
+const col1 = pl.Series.new_f64("col_1", [1, 2, 3]);
+const col2 = pl.Series.new_f64("col_2", [1, 2, 3]);
 
 // console.log({colPtr: col.ptr});
 
 // console.log({rt});
-const df = pli.DataFrame.read_columns([col1, col2][Symbol.iterator]());
+const df = pl.DataFrame.read_columns([col1, col2][Symbol.iterator]());
 df.columns = ["foo", "bar"];
-const seriesArr: any = Array.from(df.get_columns()).map((n: any) => pli.Series.wrap(n).toString());
+const seriesArr: any = Array.from(df.get_columns()).map((n: any) => pl.Series.wrap(n).toString());
 
 console.log(seriesArr);
 // console.log({ptr});
