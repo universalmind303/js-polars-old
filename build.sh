@@ -20,3 +20,5 @@ wasm-bindgen  \
   --out-dir ./pkg \
   --target web \
   --debug
+
+yarn webpack

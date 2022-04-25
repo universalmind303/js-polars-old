@@ -62,13 +62,13 @@ features = [
   # "rolling_window",
   "round_series",
   "row_hash",
-  # "rows",
+  "rows",
   # "temporal",
   "string_encoding",
   "strings",
   "true_div",
   "unique_counts",
-  "wasm"
+  "wasm",
 ]
 default-features = false
 path =  "../polars"
