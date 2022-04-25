@@ -118,17 +118,17 @@ impl JsDataFrame {
     pub fn as_single_chunk_par(&mut self) -> JsDataFrame {
         self.df.as_single_chunk_par().clone().into()
     }
-    // pub fn read_parquet(buf: &[u8]) -> JsResult<JsDataFrame> {
-    //     let reader = Cursor::new(buf);
-    //     let out = ParquetReader::new(reader)
-    //         .with_projection(None)
-    //         .with_columns(None)
-    //         .with_n_rows(None)
-    //         .with_row_count(None)
-    //         .finish()
-    //         .map_err(|e| JsPolarsErr::Other(format!("{:?}", e)))?;
-    //     Ok(out.into())
-    // }
+    pub fn read_parquet(buf: &[u8]) -> JsResult<JsDataFrame> {
+        let reader = Cursor::new(buf);
+        let out = ParquetReader::new(reader)
+            .with_projection(None)
+            .with_columns(None)
+            .with_n_rows(None)
+            .with_row_count(None)
+            .finish()
+            .map_err(|e| JsPolarsErr::Other(format!("{:?}", e)))?;
+        Ok(out.into())
+    }
     pub fn read_json(buf: &[u8]) -> JsResult<JsDataFrame> {
         let reader = Cursor::new(buf);
         let out = JsonReader::new(reader)

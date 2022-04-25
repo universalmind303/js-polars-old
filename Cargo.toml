@@ -69,6 +69,7 @@ features = [
   "true_div",
   "unique_counts",
   "wasm",
+  "parquet",
 ]
 default-features = false
 path =  "../polars"
