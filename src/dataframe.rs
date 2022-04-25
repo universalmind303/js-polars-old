@@ -113,6 +113,9 @@ impl JsDataFrame {
   pub fn as_str(&self) -> String {
     format!("{:?}", self.df)
   }
+  pub fn as_single_chunk_par(&mut self) -> JsDataFrame {
+    self.df.as_single_chunk_par().clone().into()
+  }
   pub fn fill_null(&self, strategy: &str) -> JsResult<JsDataFrame> {
     let strat = match strategy {
       "backward" => FillNullStrategy::Backward,
