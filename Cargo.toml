@@ -52,6 +52,8 @@ features = [
   "object",
   "pct_change",
   "performant",
+  "csv-file",
+  "json",
   # "private",
   # "fmt",
   "product",

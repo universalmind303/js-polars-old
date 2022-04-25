@@ -14,4 +14,4 @@ bin/
 .vscode
 *.node
 docs/
-dist/*
+dist
