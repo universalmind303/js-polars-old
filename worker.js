@@ -8,9 +8,9 @@ self.onmessage = async event => {
   const columns = Array.from({length: 10}, (_, i) => {
     return pl.Series.new_f64(`col_${i}`, randomArr())
   })
-  const res = await fetch("https://raw.githubusercontent.com/universalmind303/js-polars/js-polars-try-again/examples/1k.json")
+  const res = await fetch("https://raw.githubusercontent.com/universalmind303/js-polars/js-polars-try-again/examples/1k.parquet")
   const b = await res.arrayBuffer()
-  let df = pl.DataFrame.read_json(new Int8Array(b))
+  let df = pl.DataFrame.read_parquet(new Int8Array(b))
   console.log(df.as_str())
 
 };

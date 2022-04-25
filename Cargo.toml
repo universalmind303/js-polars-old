@@ -55,7 +55,7 @@ features = [
   "csv-file",
   "json",
   # "private",
-  # "fmt",
+  "fmt",
   "product",
   "rank",
   "reinterpret",
