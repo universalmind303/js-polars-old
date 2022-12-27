@@ -1,0 +1,67 @@
+{
+  "include": ["./polars/**/*.ts"],
+  "compileOnSave": false,
+  "compilerOptions": {
+    "allowJs": true,
+    
+    "experimentalDecorators": true,
+    "outDir": "./dist",
+    // "target": "esnext",
+    // "module": "ESNext",
+    "target": "ES2020",
+    "module": "ESNext",
+    "declaration": false,
+    "declarationMap": false,
+    // "importHelpers": true,
+
+    "baseUrl": "./",
+    "rootDir": "./polars",
+    "paths": {
+      "*": ["node_modules/*"],
+      "polars/*": ["polars/*"],
+      "tslib": ["node_modules/tslib"]
+    },
+
+    /* Basic stuff */
+    "moduleResolution": "node",
+    "lib": ["DOM", "ESNext", "ESNext.AsyncIterable"],
+    "esModuleInterop": true,
+    
+
+    /* Control what is emitted */
+    // "declaration": true,
+    // "declarationMap": true,
+    "noEmitOnError": true,
+    "removeComments": false,
+    "noErrorTruncation": true,
+    "downlevelIteration": true,
+
+    /* Create inline sourcemaps with sources */
+    "sourceMap": false,
+    "inlineSources": true,
+    "inlineSourceMap": true,
+
+    /* The most restrictive settings possible */
+    "strict": true,
+    
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "strictBindCallApply": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictPropertyInitialization": true,
+
+    "skipLibCheck": false,
+    // "importHelpers": true,
+    // "noEmitHelpers": true,
+    "noUnusedLocals": false,
+    "noImplicitReturns": true,
+    "noUnusedParameters": false,
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+    "noStrictGenericChecks": false,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
