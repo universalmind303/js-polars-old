@@ -1,8 +1,9 @@
 import { DataFrame } from "./dataframe.js";
+import { Series } from "./series/index.js";
 import * as pli from "../pkg/js_polars.js";
 import { waitForMsgType } from "./utils.js";
 const wasm = await pli.default();
-
+export { DataFrame, Series };
 const worker = new Worker(new URL("./worker.js", import.meta.url), {
   type: "module",
 });
@@ -15,7 +16,15 @@ const worker = new Worker(new URL("./worker.js", import.meta.url), {
 // };
 worker.postMessage({ type: "start", payload: wasm.memory });
 await waitForMsgType(worker, "ready");
-
+const s = pli.Series.new_opt_bool_array("foo", [
+  true,
+  false,
+  true,
+  false,
+  true,
+  false,
+]);
+console.log(s);
 const readCsvDefaultOptions = {
   inferSchemaLength: 100,
   hasHeader: true,

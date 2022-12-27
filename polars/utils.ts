@@ -1,4 +1,5 @@
 import * as pli from "../pkg/js_polars.js";
+import {DataFrame} from "./dataframe.js";
 
 export function waitForMsgType(target: any, type: any) {
   return new Promise(resolve => {
@@ -25,10 +26,37 @@ function wrap_async(methodName?: string): any {
   };
 }
 
+
 export function wrap(methodName?: string, options: { useWorker?: boolean } = {}): any {
   if (options.useWorker) {
     return wrap_async(methodName);
   }
+  return function (target: any, propertyKey: string, descriptor: any) {
+    let factory;
+    
+    switch(target.constructor.name) {
+      case 'DataFrame': factory = pli.DataFrame; break;
+      case '_Series': factory = pli.Series; break;
+      default: factory = pli.DataFrame;
+    };
+
+    methodName = methodName || propertyKey;
+    function inner(this: any, ...args: any[]) {
+      const df: any = factory.__wrap(this.ptr);
+      const out =  df[methodName!](...args);
+      if(out instanceof pli.DataFrame || out instanceof pli.Series) {
+        this.ptr = (out as any).ptr;
+      } else {
+        return out;
+      }
+    }
+    target[propertyKey] = inner;
+    return inner as any;
+    // descriptor.enumerable = value;
+  };
+}
+
+export function unwrap(methodName?: string): any {
   return function (target: any, propertyKey: string, descriptor: any) {
     methodName = methodName || propertyKey;
     function inner(this: any, ...args: any[]) {

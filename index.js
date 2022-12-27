@@ -9,6 +9,7 @@ let arr = new Uint8Array(csv_buf)
 
 const df = await pl.readCsv(arr)
 const s = df.height()
+console.log(df.drop("foo"))
 console.table(df.toRecords())
 // const s = 
 

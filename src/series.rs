@@ -9,8 +9,10 @@ use wasm_bindgen::JsCast;
 // use super::{error::JsPolarsErr, JsResult};
 // use crate::conversion::FromJsValue;
 use crate::{
-    conversion::Wrap, dataframe::JsDataFrame, error::JsPolarsErr, extern_iterator, extern_struct,
-    JsResult,
+    conversion::{str_to_null_behavior, Wrap},
+    dataframe::JsDataFrame,
+    error::JsPolarsErr,
+    extern_iterator, extern_struct, JsResult,
 };
 
 use std::ops::Deref;
@@ -69,48 +71,79 @@ extern_iterator!(SeriesArray, ExternSeries, JsSeries);
 
 #[wasm_bindgen(js_class=Series)]
 impl JsSeries {
-    #[wasm_bindgen]
+    pub fn wrap(ptr: u32) -> JsSeries {
+        unsafe { JsSeries::from_abi(ptr) }
+    }
+    pub fn new_str(name: &str, values: &js_sys::Array) -> JsResult<JsSeries> {
+        let series = Utf8Chunked::from_iter_options(name, values.iter().map(|v| v.as_string()))
+            .into_series();
+        Ok(JsSeries { series })
+    }
+    pub fn new_bool(name: &str, values: &js_sys::Array) -> JsResult<JsSeries> {
+        let series = BooleanChunked::from_iter_options(name, values.iter().map(|v| v.as_bool()))
+            .into_series();
+
+        Ok(JsSeries { series })
+    }
+    pub fn new_f64(name: &str, values: &js_sys::Array) -> JsResult<JsSeries> {
+        let series =
+            Float64Chunked::from_iter_options(name, values.iter().map(|v: JsValue| v.as_f64()))
+                .into_series();
+        Ok(JsSeries { series })
+    }
+    pub fn new_i8(name: &str, values: &js_sys::Array) -> JsResult<JsSeries> {
+        let series = Int8Chunked::from_iter_options(
+            name,
+            values.iter().map(|v: JsValue| v.as_f64().map(|n| n as i8)),
+        )
+        .into_series();
+        Ok(JsSeries { series })
+    }
+    pub fn new_series_list(name: &str, val: SeriesArray, _strict: bool) -> Self {
+        let vals = val.into_iter().map(|x| x.series).collect::<Box<[Series]>>();
+        Series::new(name, &vals).into()
+    }
+
     pub fn new_int_8_array(name: String, arr: &mut [i8]) -> JsSeries {
         Series::new(&name, arr).into()
     }
-    #[wasm_bindgen]
+
     pub fn new_uint_8_array(name: String, arr: &mut [u8]) -> JsSeries {
         Series::new(&name, arr).into()
     }
-    #[wasm_bindgen]
+
     pub fn new_int_16_array(name: String, arr: &mut [i16]) -> JsSeries {
         Series::new(&name, arr).into()
     }
-    #[wasm_bindgen]
+
     pub fn new_uint_16_array(name: String, arr: &mut [u16]) -> JsSeries {
         Series::new(&name, arr).into()
     }
-    #[wasm_bindgen]
+
     pub fn new_int_32_array(name: String, arr: &mut [i32]) -> JsSeries {
         Series::new(&name, arr).into()
     }
-    #[wasm_bindgen]
+
     pub fn new_uint_32_array(name: String, arr: &mut [u32]) -> JsSeries {
         Series::new(&name, arr).into()
     }
 
-    #[wasm_bindgen]
     pub fn new_int_64_array(name: String, arr: &mut [i64]) -> JsSeries {
         Series::new(&name, arr).into()
     }
-    #[wasm_bindgen]
+
     pub fn new_uint_64_array(name: String, arr: &mut [u64]) -> JsSeries {
         Series::new(&name, arr).into()
     }
-    #[wasm_bindgen]
+
     pub fn new_float_32_array(name: String, arr: &mut [f32]) -> JsSeries {
         Series::new(&name, arr).into()
     }
-    #[wasm_bindgen]
+
     pub fn new_float_64_array(name: String, arr: &mut [f64]) -> JsSeries {
         Series::new(&name, arr).into()
     }
-    #[wasm_bindgen]
+
     pub fn new_opt_str_array(name: String, arr: js_sys::Array) -> JsSeries {
         let len = arr.length() as usize;
         let mut builder = Utf8ChunkedBuilder::new(&name, len, len * 25);
@@ -123,7 +156,7 @@ impl JsSeries {
         }
         builder.finish().into_series().into()
     }
-    #[wasm_bindgen]
+
     pub fn new_opt_bool_array(name: String, arr: js_sys::Array) -> JsSeries {
         let len = arr.length() as usize;
         let mut builder = BooleanChunkedBuilder::new(&name, len);
@@ -135,6 +168,11 @@ impl JsSeries {
             }
         }
         builder.finish().into_series().into()
+    }
+
+    pub fn get_idx(&self, idx: usize) -> JsResult<JsValue> {
+        let av = self.series.get(idx).map_err(JsPolarsErr::from)?;
+        Ok(Wrap(av).into())
     }
 
     #[wasm_bindgen(getter)]
@@ -486,6 +524,325 @@ impl JsSeries {
     pub fn to_physical(&self) -> JsSeries {
         let s = self.series.to_physical_repr().into_owned();
         s.into()
+    }
+    pub fn to_list(&self) -> JsValue {
+        todo!()
+    }
+    pub fn median(&self) -> Option<f64> {
+        match self.series.dtype() {
+            DataType::Boolean => {
+                let s = self.series.cast(&DataType::UInt8).unwrap();
+                s.median()
+            }
+            _ => self.series.median(),
+        }
+    }
+    pub fn as_single_ptr(&mut self) -> JsResult<usize> {
+        let ptr = self.series.as_single_ptr().map_err(JsPolarsErr::from)?;
+        Ok(ptr)
+    }
+    pub fn drop_nulls(&self) -> Self {
+        self.series.drop_nulls().into()
+    }
+    pub fn fill_null(&self, strategy: &str) -> JsResult<JsSeries> {
+        let strat = match strategy {
+            // "backward" => FillNullStrategy::Backward,
+            // "forward" => FillNullStrategy::Forward,
+            "min" => FillNullStrategy::Min,
+            "max" => FillNullStrategy::Max,
+            "mean" => FillNullStrategy::Mean,
+            "zero" => FillNullStrategy::Zero,
+            "one" => FillNullStrategy::One,
+            s => return Err(format!("Strategy {} not supported", s).into()),
+        };
+        let series = self.series.fill_null(strat).map_err(JsPolarsErr::from)?;
+        Ok(JsSeries::new(series))
+    }
+
+    pub fn clone(&self) -> Self {
+        JsSeries::new(self.series.clone())
+    }
+    pub fn shift(&self, periods: i64) -> Self {
+        let s = self.series.shift(periods);
+        JsSeries::new(s)
+    }
+    pub fn zip_with(&self, mask: &JsSeries, other: &JsSeries) -> JsResult<JsSeries> {
+        let mask = mask.series.bool().map_err(JsPolarsErr::from)?;
+        let s = self
+            .series
+            .zip_with(mask, &other.series)
+            .map_err(JsPolarsErr::from)?;
+        Ok(JsSeries::new(s))
+    }
+
+    pub fn str_lengths(&self) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca.str_lengths().into_series();
+        Ok(JsSeries::new(s))
+    }
+
+    pub fn str_contains(&self, pat: &str) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca.contains(pat).map_err(JsPolarsErr::from)?.into_series();
+        Ok(s.into())
+    }
+
+    // pub fn str_json_path_match(&self, pat: &str) -> JsResult<JsSeries> {
+    //     let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+    //     let s = ca
+    //         .json_path_match(pat)
+    //         .map_err(JsPolarsErr::from)?
+    //         .into_series();
+    //     Ok(s.into())
+    // }
+
+    pub fn str_extract(&self, pat: &str, group_index: usize) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca
+            .extract(pat, group_index)
+            .map_err(JsPolarsErr::from)?
+            .into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_replace(&self, pat: &str, val: &str) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca
+            .replace(pat, val)
+            .map_err(JsPolarsErr::from)?
+            .into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_replace_all(&self, pat: &str, val: &str) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca
+            .replace_all(pat, val)
+            .map_err(JsPolarsErr::from)?
+            .into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_to_uppercase(&self) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca.to_uppercase().into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_to_lowercase(&self) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca.to_lowercase().into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_slice(&self, start: i64, length: Option<u64>) -> JsResult<JsSeries> {
+        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        let s = ca
+            .str_slice(start, length)
+            .map_err(JsPolarsErr::from)?
+            .into_series();
+        Ok(s.into())
+    }
+
+    pub fn str_hex_encode(&self) -> JsResult<JsSeries> {
+        todo!()
+        // let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        // let s = ca.hex_encode().into_series();
+        // Ok(s.into())
+    }
+    pub fn str_hex_decode(&self, strict: Option<bool>) -> JsResult<JsSeries> {
+        todo!()
+        // let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        // let s = ca
+        //     .hex_decode(strict)
+        //     .map_err(JsPolarsErr::from)?
+        //     .into_series();
+
+        // Ok(s.into())
+    }
+    pub fn str_base64_encode(&self) -> JsResult<JsSeries> {
+        todo!()
+        // let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        // let s = ca.base64_encode().into_series();
+        // Ok(s.into())
+    }
+
+    pub fn str_base64_decode(&self, strict: Option<bool>) -> JsResult<JsSeries> {
+        todo!()
+        // let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
+        // let s = ca
+        //     .base64_decode(strict)
+        //     .map_err(JsPolarsErr::from)?
+        //     .into_series();
+        // Ok(s.into())
+    }
+
+    // pub fn strftime(&self, fmt: &str) -> JsResult<JsSeries> {
+    //     let s = self.series.strftime(fmt).map_err(JsPolarsErr::from)?;
+    //     Ok(s.into())
+    // }
+
+    pub fn arr_lengths(&self) -> JsResult<JsSeries> {
+        let ca = self.series.list().map_err(JsPolarsErr::from)?;
+        let s = ca.lst_lengths().into_series();
+        Ok(JsSeries::new(s))
+    }
+
+    // // pub fn timestamp(&self, tu: Wrap<TimeUnit>) -> JsResult<JsSeries> {
+    // //     let ca = self.series.timestamp(tu.0).map_err(JsPolarsErr::from)?;
+    // //     Ok(ca.into_series().into())
+    // // }
+    pub fn get_list(&self, index: usize) -> Option<JsSeries> {
+        if let Ok(ca) = &self.series.list() {
+            let s = ca.get(index);
+            s.map(|s| s.into())
+        } else {
+            None
+        }
+    }
+
+    // pub fn year(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.year().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn month(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.month().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn weekday(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.weekday().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn week(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.week().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn day(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.day().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn ordinal_day(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.ordinal_day().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn hour(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.hour().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn minute(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.minute().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn second(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.second().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn nanosecond(&self) -> JsResult<JsSeries> {
+    //     let s = self.series.nanosecond().map_err(JsPolarsErr::from)?;
+    //     Ok(s.into_series().into())
+    // }
+
+    // pub fn dt_epoch_seconds(&self) -> JsResult<JsSeries> {
+    //     let ms = self
+    //         .series
+    //         .timestamp(TimeUnit::Milliseconds)
+    //         .map_err(JsPolarsErr::from)?;
+    //     Ok((ms / 1000).into_series().into())
+    // }
+
+    pub fn peak_max(&self) -> Self {
+        self.series.peak_max().into_series().into()
+    }
+
+    pub fn peak_min(&self) -> Self {
+        self.series.peak_min().into_series().into()
+    }
+
+    pub fn n_unique(&self) -> JsResult<usize> {
+        let n = self.series.n_unique().map_err(JsPolarsErr::from)?;
+        Ok(n)
+    }
+
+    pub fn is_first(&self) -> JsResult<JsSeries> {
+        todo!()
+        // let out = self
+        //     .series
+        //     .is_first()
+        //     .map_err(JsPolarsErr::from)?
+        //     .into_series();
+        // Ok(out.into())
+    }
+
+    pub fn round(&self, decimals: u32) -> JsResult<JsSeries> {
+        todo!()
+        // let s = self.series.round(decimals).map_err(JsPolarsErr::from)?;
+        // Ok(s.into())
+    }
+
+    pub fn floor(&self) -> JsResult<JsSeries> {
+        todo!()
+        // let s = self.series.floor().map_err(JsPolarsErr::from)?;
+        // Ok(s.into())
+    }
+
+    pub fn shrink_to_fit(&mut self) {
+        self.series.shrink_to_fit();
+    }
+
+    pub fn dot(&self, other: &JsSeries) -> Option<f64> {
+        todo!()
+        // self.series.dot(&other.series)
+    }
+
+    pub fn hash(&self, k0: u64, k1: u64, k2: u64, k3: u64) -> Self {
+        todo!()
+        // let hb = polars::export::ahash::RandomState::with_seeds(k0, k1, k2, k3);
+        // self.series.hash(hb).into_series().into()
+    }
+    pub fn reinterpret(&self, signed: bool) -> JsResult<JsSeries> {
+        todo!()
+        // let s = reinterpret(&self.series, signed).map_err(JsPolarsErr::from)?;
+        // Ok(s.into())
+    }
+
+    pub fn mode(&self) -> JsResult<JsSeries> {
+        let s = self.series.mode().map_err(JsPolarsErr::from)?;
+        Ok(s.into())
+    }
+
+    pub fn interpolate(&self) -> Self {
+        todo!()
+        // let s = self.series.interpolate();
+        // s.into()
+    }
+    pub fn rank(&self, method: &str, reverse: bool) -> JsResult<JsSeries> {
+        todo!()
+        // let method = str_to_rankmethod(method).unwrap();
+        // let options = RankOptions {
+        //     method,
+        //     descending: reverse,
+        // };
+        // Ok(self.series.rank(options).into())
+    }
+
+    pub fn dtype(&self) -> String {
+        let dt: crate::datatypes::JsDataType = self.series.dtype().into();
+        dt.to_string()
+    }
+    pub fn inner_dtype(&self) -> Option<String> {
+        self.series.dtype().inner_dtype().map(|dt| {
+            let dt: crate::datatypes::JsDataType = dt.into();
+            dt.to_string()
+        })
     }
 }
 

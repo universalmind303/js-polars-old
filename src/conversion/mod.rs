@@ -62,8 +62,8 @@ impl FromWasmAbi for Wrap<AnyValue<'_>> {
 
     unsafe fn from_abi(js: u32) -> Self {
         let jsv = JsValue::from_abi(js);
-        todo!()
-        // Wrap(AnyValue::from_js(jsv))
+        // todo!()
+        Wrap(AnyValue::from_js(jsv))
     }
 }
 
@@ -210,3 +210,26 @@ pub fn df_to_struct(df: &DataFrame) -> JsResult<js_sys::Array> {
     // }
     // Ok(rows)
 }
+
+
+pub(crate) fn str_to_null_behavior(null_behavior: &str) -> JsResult<NullBehavior> {
+    let null_behavior = match null_behavior {
+        "drop" => NullBehavior::Drop,
+        "ignore" => NullBehavior::Ignore,
+        _ => return Err(JsError::new("use one of 'drop', 'ignore'").into()),
+    };
+    Ok(null_behavior)
+}
+
+// pub(crate) fn str_to_rankmethod(method: &str) -> JsResult<RankMethod> {
+//     let method = match method {
+//         "min" => RankMethod::Min,
+//         "max" => RankMethod::Max,
+//         "average" => RankMethod::Average,
+//         "dense" => RankMethod::Dense,
+//         "ordinal" => RankMethod::Ordinal,
+//         // "random" => RankMethod::Random,
+//         _ => return Err(JsError::new("use one of 'avg, min, max, dense, ordinal'").into()),
+//     };
+//     Ok(method)
+// }

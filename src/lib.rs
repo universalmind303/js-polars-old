@@ -4,6 +4,7 @@ mod datatypes;
 mod error;
 mod series;
 mod utils;
+mod lazy;
 use wasm_bindgen::prelude::*;
 pub use wasm_bindgen_rayon::init_thread_pool;
 
