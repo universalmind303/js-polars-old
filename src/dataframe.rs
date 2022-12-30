@@ -5,7 +5,7 @@ use polars::prelude::*;
 use wasm_bindgen::JsCast;
 // use polars::export::rayon::prelude::*;
 use super::{error::JsPolarsErr, series::*, JsResult};
-use std::io::{Cursor};
+use std::io::Cursor;
 
 use wasm_bindgen::prelude::*;
 
@@ -39,9 +39,9 @@ extern "C" {
     pub type DataFrameArray;
 }
 
-
 #[wasm_bindgen]
-pub fn read_csv(buff: &[u8], 
+pub fn read_csv(
+    buff: &[u8],
     infer_schema_length: Option<u32>,
     chunk_size: u32,
     has_header: bool,
@@ -99,7 +99,7 @@ impl JsDataFrame {
         DataFrame::new_no_checks(vec![]).into()
     }
 
-    #[wasm_bindgen]
+    #[wasm_bindgen(js_name = "toString")]
     pub fn to_string(self) -> String {
         format!("{}", self.df)
     }
@@ -410,9 +410,11 @@ impl JsDataFrame {
         .unwrap();
         Ok(JsDataFrame::new(df))
     }
-    pub fn lazy(&self) -> Self {
-        todo!()
+
+    pub fn lazy(&self) -> crate::lazy::dataframe::JsLazyFrame {
+        self.df.clone().lazy().into()
     }
+
     pub fn max(&self) -> Self {
         self.df.max().into()
     }
@@ -428,7 +430,6 @@ impl JsDataFrame {
     pub fn mean(&self) -> Self {
         self.df.mean().into()
     }
-
 
     pub fn var(&self) -> Self {
         todo!()
@@ -453,32 +454,32 @@ impl JsDataFrame {
             for col in self.df.get_columns() {
                 let key: JsValue = col.name().into();
                 let val: JsValue = Wrap(col.get(idx as usize).unwrap()).into();
-                unsafe {js_sys::Reflect::set(&obj, &key, &val)?};
+                unsafe { js_sys::Reflect::set(&obj, &key, &val)? };
             }
             rows.set(idx, obj.into());
         }
         Ok(rows)
     }
+
     pub fn handleRecords(&self, f: &js_sys::Function) -> JsResult<()> {
-        todo!()
-        // let this = JsValue::null();
+        let this = JsValue::null();
 
-        // let height = self.df.height() as u32;
-        // // let rows = js_sys::Array::new_with_length(height);
+        let height = self.df.height() as u32;
+        // let rows = js_sys::Array::new_with_length(height);
 
-        // for idx in 0..height {
-        //     let obj = js_sys::Object::new();
+        for idx in 0..height {
+            let obj = js_sys::Object::new();
 
-        //     for col in self.df.get_columns() {
-        //         let key: JsValue = col.name().into();
-        //         let val: JsValue = Wrap(col.get(idx as usize)).into();
-        //         js_sys::Reflect::set(&obj, &key, &val)?;
-        //     }
-        //     f.call1(&this, &obj);
-        //     // rows.set(idx, obj.into());
-        // }
-        // Ok(())
+            for col in self.df.get_columns() {
+                let key: JsValue = col.name().into();
+                let val: JsValue = Wrap(col.get(idx as usize).unwrap()).into();
+                unsafe { js_sys::Reflect::set(&obj, &key, &val)? };
+            }
+            f.call1(&this, &obj)?;
+        }
+        Ok(())
     }
+
     pub fn toObject(&mut self) -> JsResult<js_sys::Object> {
         todo!()
         // let obj = js_sys::Object::new();
@@ -492,5 +493,4 @@ impl JsDataFrame {
 
         // Ok(obj)
     }
-
 }

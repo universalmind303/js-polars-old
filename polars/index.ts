@@ -1,6 +1,8 @@
 import { DataFrame } from "./dataframe.js";
 import { Series } from "./series/index.js";
 import * as pli from "../pkg/js_polars.js";
+export * from "./lazy/index.js";
+
 import { waitForMsgType } from "./utils.js";
 const wasm = await pli.default();
 export { DataFrame, Series };
@@ -8,12 +10,8 @@ const worker = new Worker(new URL("./worker.js", import.meta.url), {
   type: "module",
 });
 
-// worker.onmessage = async (event) => {
+(window as any).__polars_worker__ = worker;
 
-//   if (event.data.message === "repost") {
-//     worker.postMessage(event.data.data);
-//   }
-// };
 worker.postMessage({ type: "start", payload: wasm.memory });
 await waitForMsgType(worker, "ready");
 const s = pli.Series.new_opt_bool_array("foo", [
@@ -58,7 +56,7 @@ export interface ReadCsvOptions {
 export async function readCsv(
   buf: Uint8Array,
   options: ReadCsvOptions = readCsvDefaultOptions,
-): Promise<DataFrame> {
+): Promise<pli.DataFrame> {
   worker.postMessage(
     {
       type: "read_csv",
@@ -69,5 +67,16 @@ export async function readCsv(
   );
   const event: any = await waitForMsgType(worker, "read_csv");
   const ptr = event.data.ptr;
-  return new DataFrame(ptr, worker);
+  return (pli.DataFrame as any).__wrap(ptr);
+}
+
+(pli.LazyFrame.prototype as any).collect = async function () {
+  const ptr = this.ptr;
+  worker.postMessage({
+    type: "LazyFrame::collect",
+    ptr,
+  });
+  const event: any = await waitForMsgType(worker, "LazyFrame::collect");
+  const df_ptr = event.data.ptr;
+  return (pli.DataFrame as any).__wrap(df_ptr);
 }

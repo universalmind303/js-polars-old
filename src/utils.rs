@@ -1,4 +1,7 @@
 use polars::prelude::{DataType, TimeUnit};
+use wasm_bindgen::convert::FromWasmAbi;
+
+use crate::{JsResult, lazy::expr::JsExpr};
 
 pub fn str_to_polarstype(s: &str) -> DataType {
     match s {
