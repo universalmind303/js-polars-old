@@ -1,24 +1,40 @@
-## Running locally.
+# @pola-rs/browser
+This package contains the js <--> WASM bindings for the polars library.
 
-### Prerequisites
-- node
-- wasm-pack
-- python
-- rust nightly
-- yarn 2+
+# Warning
+This package is highly experimental and is not meant for production usage. It is provided as-is and may contain bugs or incomplete features. Use at your own risk. Do not rely on this package for critical applications.
+
+We make no guarantees about the stability, reliability, or performance of this package. It may undergo significant changes or be removed at any time.
 
 
-since polars must use workers for multithreading, you must run the polars code inside of a worker. 
+## Startup overhead
 
-1. 
-   `wasm-pack build -t web`
+Please be aware that this package has significant startup overhead when run in the browser, due in part to the size of the WASM binary, as well as spawning of workers & threadpools. 
 
-2. upload a csv file to `./examples`
-3. change worker.js line:2 to point to your csv file. 
+We recommend only using this package in cases where the benefits of the features it provides outweigh the added startup overhead.
 
-4.  run `python server.py`
+## Example usage
 
-5. open your browser to `localhost:8000/index.html`
+install via npm
+```
+ npm i -s @pola-rs/browser
+```
+install via yarn
+```
+yarn add @pola-rs/browser
+```
 
-6. open the browser console & you should see the output from `worker.js`
+Usage
 
+```js
+
+import * as pl from "@pola-rs/browser"
+const filepath = "https://raw.githubusercontent.com/pola-rs/polars/master/examples/datasets/foods2.csv"
+
+let df = await pl.read_csv(filepath)
+
+let lf = df.lazy();
+df = await lf.collect()
+
+console.table(df.head(10).to_records())
+```

@@ -2,7 +2,6 @@ use super::JsExpr;
 use crate::{extern_iterator, extern_struct};
 use polars::prelude::Expr;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(typescript_type = "Expr")]

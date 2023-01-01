@@ -1,11 +1,7 @@
+use super::{error::JsPolarsErr, series::*, JsResult};
 use crate::conversion::*;
 use crate::datatypes::JsDataType;
 use polars::prelude::*;
-// use wasm_bindgen::convert::FromWasmAbi;
-use wasm_bindgen::JsCast;
-// use polars::export::rayon::prelude::*;
-use super::{error::JsPolarsErr, series::*, JsResult};
-use std::io::Cursor;
 
 use wasm_bindgen::prelude::*;
 
@@ -39,59 +35,6 @@ extern "C" {
     pub type DataFrameArray;
 }
 
-#[wasm_bindgen]
-pub fn read_csv(
-    buff: &[u8],
-    infer_schema_length: Option<u32>,
-    chunk_size: u32,
-    has_header: bool,
-    ignore_errors: bool,
-    n_rows: Option<u32>,
-    skip_rows: u32,
-    rechunk: bool,
-    encoding: String,
-    n_threads: Option<u32>,
-    low_memory: bool,
-    parse_dates: bool,
-    skip_rows_after_header: u32,
-) -> JsResult<JsDataFrame> {
-    let infer_schema_length = infer_schema_length.map(|i| i as usize);
-    let n_threads = n_threads.map(|i| i as usize);
-    let n_rows = n_rows.map(|i| i as usize);
-    let skip_rows = skip_rows as usize;
-    let chunk_size = chunk_size as usize;
-
-    let encoding = match encoding.as_ref() {
-        "utf8" => CsvEncoding::Utf8,
-        "utf8-lossy" => CsvEncoding::LossyUtf8,
-        e => return Err(JsPolarsErr::Other(format!("encoding not {} not implemented.", e)).into()),
-    };
-
-    let cursor = Cursor::new(buff);
-    let df = CsvReader::new(cursor)
-        .infer_schema(infer_schema_length)
-        .has_header(has_header)
-        .with_n_rows(n_rows)
-        .with_delimiter(",".as_bytes()[0])
-        .with_skip_rows(skip_rows)
-        .with_ignore_parser_errors(ignore_errors)
-        .with_rechunk(rechunk)
-        .with_chunk_size(chunk_size)
-        .with_encoding(encoding)
-        // .with_columns(columns)
-        // .with_n_threads(n_threads)
-        .low_memory(low_memory)
-        // .with_comment_char(comment_char)
-        // .with_null_values(null_values)
-        .with_parse_dates(parse_dates)
-        // .with_quote_char(quote_char)
-        // .with_row_count(row_count)
-        .finish()
-        .map_err(JsPolarsErr::from)?;
-
-    Ok(df.into())
-}
-
 #[wasm_bindgen(js_class=DataFrame)]
 impl JsDataFrame {
     #[wasm_bindgen(constructor)]
@@ -103,14 +46,6 @@ impl JsDataFrame {
     pub fn to_string(self) -> String {
         format!("{}", self.df)
     }
-    // pub fn read_json(buf: &[u8]) -> JsResult<JsDataFrame> {
-    //     let reader = Cursor::new(buf);
-    //     let out = JsonReader::new(reader)
-    //         .with_json_format(JsonFormat::JsonLines)
-    //         .finish()
-    //         .map_err(|e| JsPolarsErr::Other(format!("{:?}", e)))?;
-    //     Ok(out.into())
-    // }
 
     pub fn read_columns(columns: js_sys::Iterator) -> JsResult<JsDataFrame> {
         let cols = to_series_collection(columns);
@@ -140,13 +75,6 @@ impl JsDataFrame {
             "left" => JoinType::Left,
             "inner" => JoinType::Inner,
             "outer" => JoinType::Outer,
-            // "asof" => JoinType::AsOf(AsOfOptions {
-            //   strategy: AsofStrategy::Backward,
-            //   left_by: None,
-            //   right_by: None,
-            //   tolerance: None,
-            //   tolerance_str: None,
-            // }),
             "cross" => JoinType::Cross,
             _ => panic!("not supported"),
         };
@@ -433,7 +361,6 @@ impl JsDataFrame {
 
     pub fn var(&self) -> Self {
         todo!()
-        // self.df.var().into()
     }
 
     pub fn median(&self) -> Self {
@@ -444,7 +371,7 @@ impl JsDataFrame {
         df.into()
     }
 
-    pub fn toRecords(&self) -> JsResult<js_sys::Array> {
+    pub fn to_records(&self) -> JsResult<js_sys::Array> {
         let height = self.df.height() as u32;
         let rows = js_sys::Array::new_with_length(height);
 
@@ -454,14 +381,14 @@ impl JsDataFrame {
             for col in self.df.get_columns() {
                 let key: JsValue = col.name().into();
                 let val: JsValue = Wrap(col.get(idx as usize).unwrap()).into();
-                unsafe { js_sys::Reflect::set(&obj, &key, &val)? };
+                js_sys::Reflect::set(&obj, &key, &val)?;
             }
             rows.set(idx, obj.into());
         }
         Ok(rows)
     }
 
-    pub fn handleRecords(&self, f: &js_sys::Function) -> JsResult<()> {
+    pub fn handle_records(&self, f: &js_sys::Function) -> JsResult<()> {
         let this = JsValue::null();
 
         let height = self.df.height() as u32;
@@ -473,14 +400,14 @@ impl JsDataFrame {
             for col in self.df.get_columns() {
                 let key: JsValue = col.name().into();
                 let val: JsValue = Wrap(col.get(idx as usize).unwrap()).into();
-                unsafe { js_sys::Reflect::set(&obj, &key, &val)? };
+                js_sys::Reflect::set(&obj, &key, &val)?;
             }
             f.call1(&this, &obj)?;
         }
         Ok(())
     }
 
-    pub fn toObject(&mut self) -> JsResult<js_sys::Object> {
+    pub fn to_object(&mut self) -> JsResult<js_sys::Object> {
         todo!()
         // let obj = js_sys::Object::new();
         // self.df.rechunk();

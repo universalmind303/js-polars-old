@@ -1,7 +1,13 @@
-import * as pli from "../pkg/js_polars.js";
+/**!
+ * The polars worker is a web worker that is used to offload heavy computations.
+ * Since browsers do not allow atomics on the main thread,
+ * any function that uses the rust threadpool needs to be executed in the worker.
+ */
+import * as pli from "./core/browser.js";
+import { ReadCsvOptions } from "./io.js";
 
-import { ReadCsvOptions } from "./index.js";
 let initialized = false;
+
 export async function start(mem: WebAssembly.Memory) {
   await pli.default(undefined, mem);
   await pli.initThreadPool(navigator.hardwareConcurrency);
@@ -51,8 +57,8 @@ self.addEventListener("message", async (event) => {
         type: "LazyFrame::collect",
         ptr: df.ptr,
       });
-
     }
+    
     default: {
       console.log("unknown method", event.data.method);
     }

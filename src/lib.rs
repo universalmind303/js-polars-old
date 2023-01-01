@@ -5,18 +5,14 @@ mod error;
 mod series;
 mod utils;
 mod lazy;
+mod io;
+pub use io::*;
 use wasm_bindgen::prelude::*;
 pub use wasm_bindgen_rayon::init_thread_pool;
 
 pub type JsResult<T> = std::result::Result<T, JsValue>;
 extern crate console_error_panic_hook;
 use std::panic;
-// extern crate wee_alloc;
-
-// // Use `wee_alloc` as the global allocator.
-// #[global_allocator]
-// static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
 #[wasm_bindgen]
 pub fn init_hooks() {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
@@ -32,7 +28,5 @@ extern "C" {
 
 #[macro_export]
 macro_rules! console_log {
-    // Note that this is using the `log` function imported above during
-    // `bare_bones`
     ($($t:tt)*) => (crate::log(&format_args!($($t)*).to_string()))
 }

@@ -6,6 +6,8 @@ use wasm_bindgen::prelude::JsValue;
 pub enum JsPolarsErr {
     #[error(transparent)]
     Any(#[from] PolarsError),
+    #[error(transparent)]
+    Serde(#[from] serde_wasm_bindgen::Error),
     #[error("{0}")]
     Other(String),
 }

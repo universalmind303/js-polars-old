@@ -1,2 +1,2 @@
-export {col, cols} from "../../pkg/js_polars.js";
+export {col, cols} from "../core/browser.js";
 

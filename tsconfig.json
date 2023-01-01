@@ -6,13 +6,9 @@
     
     "experimentalDecorators": true,
     "outDir": "./dist",
-    // "target": "esnext",
-    // "module": "ESNext",
-    "target": "ES2020",
+    "target": "esnext",
     "module": "ESNext",
-    "declaration": false,
     "declarationMap": false,
-    // "importHelpers": true,
 
     "baseUrl": "./",
     "rootDir": "./polars",
@@ -22,28 +18,20 @@
       "tslib": ["node_modules/tslib"]
     },
 
-    /* Basic stuff */
     "moduleResolution": "node",
     "lib": ["DOM", "ESNext", "ESNext.AsyncIterable"],
     "esModuleInterop": true,
     
 
-    /* Control what is emitted */
-    // "declaration": true,
-    // "declarationMap": true,
+    "declaration": true,
     "noEmitOnError": true,
     "removeComments": false,
     "noErrorTruncation": true,
     "downlevelIteration": true,
-
-    /* Create inline sourcemaps with sources */
     "sourceMap": false,
     "inlineSources": true,
     "inlineSourceMap": true,
-
-    /* The most restrictive settings possible */
     "strict": true,
-    
     "noImplicitAny": false,
     "noImplicitThis": true,
     "alwaysStrict": true,
@@ -51,10 +39,7 @@
     "strictNullChecks": true,
     "strictFunctionTypes": true,
     "strictPropertyInitialization": true,
-
     "skipLibCheck": false,
-    // "importHelpers": true,
-    // "noEmitHelpers": true,
     "noUnusedLocals": false,
     "noImplicitReturns": true,
     "noUnusedParameters": false,

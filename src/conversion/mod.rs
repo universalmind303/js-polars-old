@@ -5,10 +5,9 @@ pub mod prelude;
 
 use crate::JsResult;
 use polars::prelude::*;
-use polars::series::ops::NullBehavior;
-use wasm_bindgen::convert::{FromWasmAbi};
+use wasm_bindgen::convert::FromWasmAbi;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::{describe::WasmDescribe, JsCast, JsError};
+use wasm_bindgen::{describe::WasmDescribe, JsCast};
 
 #[repr(transparent)]
 pub struct Wrap<T>(pub T);
@@ -121,7 +120,6 @@ impl From<Wrap<&Series>> for JsValue {
             DataType::Struct(_) => {
                 let ca = s.struct_().unwrap();
                 let df: DataFrame = ca.clone().into();
-                let (height, _) = df.shape();
                 df_to_struct(&df).unwrap().into()
             }
             _ => {
@@ -171,65 +169,6 @@ impl From<Wrap<AnyValue<'_>>> for JsValue {
     }
 }
 
-// pub(crate) fn str_to_null_behavior(null_behavior: &str) -> JsResult<NullBehavior> {
-//     let null_behavior = match null_behavior {
-//         "drop" => NullBehavior::Drop,
-//         "ignore" => NullBehavior::Ignore,
-//         _ => return Err(JsError::new("use one of 'drop', 'ignore'").into()),
-//     };
-//     Ok(null_behavior)
-// }
-
-// pub(crate) fn str_to_rankmethod(method: &str) -> JsResult<RankMethod> {
-//     let method = match method {
-//         "min" => RankMethod::Min,
-//         "max" => RankMethod::Max,
-//         "average" => RankMethod::Average,
-//         "dense" => RankMethod::Dense,
-//         "ordinal" => RankMethod::Ordinal,
-//         // "random" => RankMethod::Random,
-//         _ => return Err(JsError::new("use one of 'avg, min, max, dense, ordinal'").into()),
-//     };
-//     Ok(method)
-// }
-
-pub fn df_to_struct(df: &DataFrame) -> JsResult<js_sys::Array> {
+pub fn df_to_struct(_df: &DataFrame) -> JsResult<js_sys::Array> {
     todo!()
-    // let height = df.height() as u32;
-    // let rows = js_sys::Array::new_with_length(height);
-
-    // for idx in 0..height {
-    //     let obj = js_sys::Object::new();
-
-    //     for col in df.get_columns() {
-    //         let key: JsValue = col.name().into();
-    //         let val: JsValue = Wrap(col.get(idx as usize)).into();
-    //         js_sys::Reflect::set(&obj, &key, &val)?;
-    //     }
-    //     rows.set(idx, obj.into());
-    // }
-    // Ok(rows)
 }
-
-
-pub(crate) fn str_to_null_behavior(null_behavior: &str) -> JsResult<NullBehavior> {
-    let null_behavior = match null_behavior {
-        "drop" => NullBehavior::Drop,
-        "ignore" => NullBehavior::Ignore,
-        _ => return Err(JsError::new("use one of 'drop', 'ignore'").into()),
-    };
-    Ok(null_behavior)
-}
-
-// pub(crate) fn str_to_rankmethod(method: &str) -> JsResult<RankMethod> {
-//     let method = match method {
-//         "min" => RankMethod::Min,
-//         "max" => RankMethod::Max,
-//         "average" => RankMethod::Average,
-//         "dense" => RankMethod::Dense,
-//         "ordinal" => RankMethod::Ordinal,
-//         // "random" => RankMethod::Random,
-//         _ => return Err(JsError::new("use one of 'avg, min, max, dense, ordinal'").into()),
-//     };
-//     Ok(method)
-// }

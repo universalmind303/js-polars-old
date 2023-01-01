@@ -1,18 +1,9 @@
-// use crate::conversion::str_to_null_behavior;
-// use crate::conversion::str_to_rankmethod;
-// use crate::conversion::Wrap;
-// use crate::utils::str_to_polarstype;
-// use crate::{console_log, log};
 use polars::prelude::*;
 use wasm_bindgen::JsCast;
 
-// use super::{error::JsPolarsErr, JsResult};
-// use crate::conversion::FromJsValue;
 use crate::{
-    conversion::{str_to_null_behavior, Wrap},
-    dataframe::JsDataFrame,
-    error::JsPolarsErr,
-    extern_iterator, extern_struct, JsResult,
+    conversion::Wrap, dataframe::JsDataFrame, error::JsPolarsErr, extern_iterator, extern_struct,
+    JsResult,
 };
 
 use std::ops::Deref;
@@ -36,9 +27,6 @@ impl From<Series> for JsSeries {
     }
 }
 
-// impl wasm_bindgen::convert::FromWasmAbi for JsSeries {
-
-// }
 impl Deref for JsSeries {
     type Target = Series;
 
@@ -575,108 +563,6 @@ impl JsSeries {
         Ok(JsSeries::new(s))
     }
 
-    pub fn str_lengths(&self) -> JsResult<JsSeries> {
-        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-        let s = ca.str_lengths().into_series();
-        Ok(JsSeries::new(s))
-    }
-
-    pub fn str_contains(&self, pat: &str) -> JsResult<JsSeries> {
-        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-        let s = ca.contains(pat).map_err(JsPolarsErr::from)?.into_series();
-        Ok(s.into())
-    }
-
-    // pub fn str_json_path_match(&self, pat: &str) -> JsResult<JsSeries> {
-    //     let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-    //     let s = ca
-    //         .json_path_match(pat)
-    //         .map_err(JsPolarsErr::from)?
-    //         .into_series();
-    //     Ok(s.into())
-    // }
-
-    pub fn str_extract(&self, pat: &str, group_index: usize) -> JsResult<JsSeries> {
-        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-        let s = ca
-            .extract(pat, group_index)
-            .map_err(JsPolarsErr::from)?
-            .into_series();
-        Ok(s.into())
-    }
-
-    pub fn str_replace(&self, pat: &str, val: &str) -> JsResult<JsSeries> {
-        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-        let s = ca
-            .replace(pat, val)
-            .map_err(JsPolarsErr::from)?
-            .into_series();
-        Ok(s.into())
-    }
-
-    pub fn str_replace_all(&self, pat: &str, val: &str) -> JsResult<JsSeries> {
-        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-        let s = ca
-            .replace_all(pat, val)
-            .map_err(JsPolarsErr::from)?
-            .into_series();
-        Ok(s.into())
-    }
-
-    pub fn str_to_uppercase(&self) -> JsResult<JsSeries> {
-        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-        let s = ca.to_uppercase().into_series();
-        Ok(s.into())
-    }
-
-    pub fn str_to_lowercase(&self) -> JsResult<JsSeries> {
-        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-        let s = ca.to_lowercase().into_series();
-        Ok(s.into())
-    }
-
-    pub fn str_slice(&self, start: i64, length: Option<u64>) -> JsResult<JsSeries> {
-        let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-        let s = ca
-            .str_slice(start, length)
-            .map_err(JsPolarsErr::from)?
-            .into_series();
-        Ok(s.into())
-    }
-
-    pub fn str_hex_encode(&self) -> JsResult<JsSeries> {
-        todo!()
-        // let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-        // let s = ca.hex_encode().into_series();
-        // Ok(s.into())
-    }
-    pub fn str_hex_decode(&self, strict: Option<bool>) -> JsResult<JsSeries> {
-        todo!()
-        // let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-        // let s = ca
-        //     .hex_decode(strict)
-        //     .map_err(JsPolarsErr::from)?
-        //     .into_series();
-
-        // Ok(s.into())
-    }
-    pub fn str_base64_encode(&self) -> JsResult<JsSeries> {
-        todo!()
-        // let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-        // let s = ca.base64_encode().into_series();
-        // Ok(s.into())
-    }
-
-    pub fn str_base64_decode(&self, strict: Option<bool>) -> JsResult<JsSeries> {
-        todo!()
-        // let ca = self.series.utf8().map_err(JsPolarsErr::from)?;
-        // let s = ca
-        //     .base64_decode(strict)
-        //     .map_err(JsPolarsErr::from)?
-        //     .into_series();
-        // Ok(s.into())
-    }
-
     // pub fn strftime(&self, fmt: &str) -> JsResult<JsSeries> {
     //     let s = self.series.strftime(fmt).map_err(JsPolarsErr::from)?;
     //     Ok(s.into())
@@ -783,36 +669,35 @@ impl JsSeries {
     }
 
     pub fn round(&self, decimals: u32) -> JsResult<JsSeries> {
-        todo!()
-        // let s = self.series.round(decimals).map_err(JsPolarsErr::from)?;
-        // Ok(s.into())
+        let s = self.series.round(decimals).map_err(JsPolarsErr::from)?;
+        Ok(s.into())
     }
 
     pub fn floor(&self) -> JsResult<JsSeries> {
-        todo!()
-        // let s = self.series.floor().map_err(JsPolarsErr::from)?;
-        // Ok(s.into())
+        let s = self.series.floor().map_err(JsPolarsErr::from)?;
+        Ok(s.into())
     }
 
     pub fn shrink_to_fit(&mut self) {
         self.series.shrink_to_fit();
     }
 
-    pub fn dot(&self, other: &JsSeries) -> Option<f64> {
+    pub fn dot(&self, _other: &JsSeries) -> Option<f64> {
         todo!()
         // self.series.dot(&other.series)
     }
 
-    pub fn hash(&self, k0: u64, k1: u64, k2: u64, k3: u64) -> Self {
-        todo!()
-        // let hb = polars::export::ahash::RandomState::with_seeds(k0, k1, k2, k3);
-        // self.series.hash(hb).into_series().into()
-    }
-    pub fn reinterpret(&self, signed: bool) -> JsResult<JsSeries> {
-        todo!()
-        // let s = reinterpret(&self.series, signed).map_err(JsPolarsErr::from)?;
-        // Ok(s.into())
-    }
+    // pub fn hash(&self, k0: u64, k1: u64, k2: u64, k3: u64) -> Self {
+    //     todo!()
+    // let hb = polars::export::ahash::RandomState::with_seeds(k0, k1, k2, k3);
+    // self.series.hash(hb).into_series().into()
+    // }
+
+    // pub fn reinterpret(&self, signed: bool) -> JsResult<JsSeries> {
+    //     todo!()
+    // let s = reinterpret(&self.series, signed).map_err(JsPolarsErr::from)?;
+    // Ok(s.into())
+    // }
 
     pub fn mode(&self) -> JsResult<JsSeries> {
         let s = self.series.mode().map_err(JsPolarsErr::from)?;
@@ -824,7 +709,7 @@ impl JsSeries {
         // let s = self.series.interpolate();
         // s.into()
     }
-    pub fn rank(&self, method: &str, reverse: bool) -> JsResult<JsSeries> {
+    pub fn rank(&self, _method: &str, _reverse: bool) -> JsResult<JsSeries> {
         todo!()
         // let method = str_to_rankmethod(method).unwrap();
         // let options = RankOptions {
@@ -869,7 +754,7 @@ pub(crate) fn to_series_collection(iter: js_sys::Iterator) -> Vec<Series> {
         .map(|jsv| {
             let jsv = jsv.unwrap();
             let key = JsValue::from_str("ptr");
-            let ptr = unsafe { js_sys::Reflect::get(&jsv, &key).unwrap() };
+            let ptr = js_sys::Reflect::get(&jsv, &key).unwrap();
             let n: f64 = js_sys::Number::unchecked_from_js(ptr).into();
             let ser: JsSeries = unsafe { JsSeries::from_abi(n as u32) };
             ser.series
